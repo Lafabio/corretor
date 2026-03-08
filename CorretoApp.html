@@ -1,0 +1,1459 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>CorretoApp — Colégio Coração Feliz</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root {
+  --bg:#0f1117; --surface:#1a1d27; --surface2:#222636; --surface3:#2a2f45;
+  --accent:#4f8ef7; --accent2:#7c5af0; --green:#22d3a0; --red:#f7566a;
+  --yellow:#f5c842; --text:#e8eaf0; --text2:#8b90a8; --border:#2e3350;
+  --radius:14px; --shadow:0 8px 32px rgba(0,0,0,.4);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+
+/* NAV */
+.topnav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(15,17,23,.94);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:56px}
+.logo-mark{font-size:17px;font-weight:800;letter-spacing:-.5px;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.nav-tabs{display:flex;gap:2px}
+.nav-tab{background:none;border:none;color:var(--text2);font-family:'Sora',sans-serif;font-size:11px;font-weight:600;padding:6px 10px;border-radius:8px;cursor:pointer;transition:all .2s;letter-spacing:.3px}
+.nav-tab.active{background:var(--surface2);color:var(--text)}
+
+/* SYNC INDICATOR */
+.sync-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-left:6px;transition:background .3s}
+.sync-dot.ok{background:var(--green)}
+.sync-dot.err{background:var(--red)}
+.sync-dot.loading{background:var(--yellow);animation:pulse .8s infinite}
+.sync-dot.off{background:var(--surface3)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* PAGES */
+.page{display:none;padding:72px 16px 40px;max-width:680px;margin:0 auto}
+.page.active{display:block}
+
+/* CARDS */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px;box-shadow:var(--shadow)}
+.card-title{font-size:11px;font-weight:700;letter-spacing:1.5px;color:var(--text2);text-transform:uppercase;margin-bottom:14px}
+
+/* FORMS */
+label{font-size:12px;color:var(--text2);font-weight:600;display:block;margin-bottom:5px}
+input[type=text],input[type=number],textarea,select{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Sora',sans-serif;font-size:14px;padding:10px 12px;outline:none;transition:border .2s}
+input:focus,textarea:focus,select:focus{border-color:var(--accent)}
+select option{background:var(--surface2)}
+.form-row{display:grid;gap:12px;margin-bottom:12px}
+.form-row.cols2{grid-template-columns:1fr 1fr}
+.form-row.cols3{grid-template-columns:1fr 1fr 1fr}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:11px 18px;border-radius:10px;border:none;cursor:pointer;font-family:'Sora',sans-serif;font-size:13px;font-weight:700;letter-spacing:.3px;transition:all .18s;user-select:none}
+.btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff}
+.btn-primary:hover{opacity:.88;transform:translateY(-1px)}
+.btn-green{background:var(--green);color:#0a2018}
+.btn-green:hover{opacity:.88}
+.btn-red{background:var(--red);color:#fff}
+.btn-ghost{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
+.btn-ghost:hover{border-color:var(--accent)}
+.btn-sm{padding:7px 12px;font-size:11px;border-radius:8px}
+.btn-full{width:100%}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none!important}
+
+/* STUDENT ITEMS */
+.student-item{display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:8px}
+.student-name{font-size:14px;font-weight:600}
+.student-meta{font-size:11px;color:var(--text2)}
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;letter-spacing:.5px}
+.badge-blue{background:rgba(79,142,247,.15);color:var(--accent)}
+.badge-green{background:rgba(34,211,160,.15);color:var(--green)}
+.badge-yellow{background:rgba(245,200,66,.15);color:var(--yellow)}
+.badge-red{background:rgba(247,86,106,.15);color:var(--red)}
+
+/* GABARITO */
+.question-block{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px}
+.question-block .q-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.question-block .q-num{font-size:11px;font-weight:800;color:var(--accent);letter-spacing:1px}
+.alternatives-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:8px}
+.alt-btn{background:var(--surface3);border:2px solid var(--border);color:var(--text2);border-radius:8px;padding:8px 4px;font-family:'DM Mono',monospace;font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;text-align:center}
+.alt-btn.selected{border-color:var(--green);background:rgba(34,211,160,.12);color:var(--green)}
+.alt-btn:hover:not(.selected){border-color:var(--accent);color:var(--accent)}
+
+/* SCAN */
+.scan-area{background:var(--surface2);border:2px dashed var(--border);border-radius:var(--radius);min-height:180px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px;text-align:center;cursor:pointer;transition:border .2s}
+.scan-area:hover{border-color:var(--accent)}
+.scan-area p{font-size:13px;color:var(--text2)}
+
+/* BUBBLES */
+.answer-grid-display{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:12px}
+.answer-row{display:flex;align-items:center;gap:8px;background:var(--surface2);border-radius:8px;padding:8px 12px}
+.answer-row .q-label{font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);min-width:24px;font-weight:700}
+.answer-bubbles{display:flex;gap:6px}
+.bubble{width:28px;height:28px;border-radius:50%;border:2px solid var(--border);background:var(--surface3);display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:10px;font-weight:700;color:var(--text2);cursor:pointer;transition:all .15s}
+.bubble.filled{background:var(--accent);border-color:var(--accent);color:#fff}
+.bubble.correct{background:var(--green);border-color:var(--green);color:#0a2018}
+.bubble.wrong{background:var(--red);border-color:var(--red);color:#fff}
+
+/* RESULTS */
+.result-card{background:linear-gradient(135deg,var(--surface),var(--surface2));border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:10px}
+.result-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.result-name{font-size:15px;font-weight:700}
+.score-circle{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:16px;font-weight:700}
+.score-high{background:rgba(34,211,160,.2);border:2px solid var(--green);color:var(--green)}
+.score-mid{background:rgba(245,200,66,.2);border:2px solid var(--yellow);color:var(--yellow)}
+.score-low{background:rgba(247,86,106,.2);border:2px solid var(--red);color:var(--red)}
+.result-bars{display:flex;gap:3px;margin-top:8px}
+.result-bar{height:5px;flex:1;border-radius:3px}
+
+/* STEPS */
+.steps{display:flex;gap:8px;align-items:center;margin-bottom:20px}
+.step-dot{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;transition:all .2s}
+.step-dot.done{background:var(--green);color:#0a2018}
+.step-dot.active{background:var(--accent);color:#fff;box-shadow:0 0 0 4px rgba(79,142,247,.2)}
+.step-dot.pending{background:var(--surface3);color:var(--text2)}
+.step-line{flex:1;height:2px;background:var(--border);border-radius:99px}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:24px;width:100%;max-width:460px;max-height:85vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,.6)}
+.modal-title{font-size:17px;font-weight:700;margin-bottom:16px}
+
+/* GOOGLE SHEETS CONFIG CARD */
+.gs-status-bar{display:flex;align-items:center;gap:10px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:12px}
+.gs-status-text{font-size:12px;font-weight:600;flex:1}
+.gs-status-sub{font-size:11px;color:var(--text2);margin-top:2px}
+
+/* MISC */
+.divider{height:1px;background:var(--border);margin:16px 0}
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.section-title{font-size:16px;font-weight:700}
+.empty{text-align:center;padding:40px 20px;color:var(--text2)}
+.empty p{font-size:13px}
+.qr-preview{background:#fff;border-radius:10px;padding:10px;display:inline-block}
+
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 20px;font-size:13px;font-weight:600;z-index:999;transition:transform .3s;white-space:nowrap;box-shadow:var(--shadow)}
+#toast.show{transform:translateX(-50%) translateY(0)}
+
+@media(max-width:400px){
+  .answer-grid-display{grid-template-columns:1fr}
+  .form-row.cols3{grid-template-columns:1fr 1fr}
+  .nav-tab{font-size:10px;padding:5px 7px}
+}
+</style>
+</head>
+<body>
+
+<!-- TOP NAV -->
+<nav class="topnav">
+  <div style="display:flex;align-items:center;gap:8px">
+    <span class="logo-mark">✦ CorretoApp</span>
+    <span class="sync-dot off" id="sync-dot" title="Status Google Sheets"></span>
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('pg-setup')">Provas</button>
+    <button class="nav-tab" onclick="showPage('pg-scan')">Corrigir</button>
+    <button class="nav-tab" onclick="showPage('pg-results')">Resultados</button>
+    <button class="nav-tab" onclick="showPage('pg-config')">⚙</button>
+  </div>
+</nav>
+
+<!-- ══════════════════════════ PAGE: CONFIG ══════════════════════════ -->
+<div class="page" id="pg-config">
+  <div class="card">
+    <div class="card-title">🔗 Integração Google Sheets</div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.6">
+      Cole aqui a URL do seu Google Apps Script implantado como <strong style="color:var(--text)">Aplicativo da Web</strong>.
+      Siga o guia abaixo para obter a URL.
+    </p>
+    <div class="form-row">
+      <div>
+        <label>URL do Apps Script (Web App)</label>
+        <input type="text" id="gs-url" placeholder="https://script.google.com/macros/s/AKf.../exec">
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="salvarGSUrl()">Salvar URL</button>
+      <button class="btn btn-ghost" onclick="testarConexao()">🔌 Testar conexão</button>
+      <button class="btn btn-ghost btn-sm" onclick="sincronizarTudo()">↺ Sincronizar tudo</button>
+    </div>
+    <div class="divider"></div>
+    <div class="gs-status-bar" id="gs-status-bar">
+      <span class="sync-dot off" id="gs-dot"></span>
+      <div>
+        <div class="gs-status-text" id="gs-status-text">Não configurado</div>
+        <div class="gs-status-sub" id="gs-status-sub">Configure a URL acima para começar</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📋 Como configurar — Passo a passo</div>
+    <div style="font-size:13px;line-height:1.9;color:var(--text2)">
+      <div style="margin-bottom:12px">
+        <strong style="color:var(--accent)">1.</strong> Abra
+        <a href="https://sheets.google.com" target="_blank" style="color:var(--accent)">Google Sheets</a>
+        e crie uma planilha nova. Anote o nome que der.
+      </div>
+      <div style="margin-bottom:12px">
+        <strong style="color:var(--accent)">2.</strong> No menu superior: <strong style="color:var(--text)">Extensões → Apps Script</strong>
+      </div>
+      <div style="margin-bottom:12px">
+        <strong style="color:var(--accent)">3.</strong> Apague o código existente e cole todo o conteúdo do arquivo <code style="background:var(--surface3);padding:2px 6px;border-radius:4px">Code.gs</code> que você recebeu.
+      </div>
+      <div style="margin-bottom:12px">
+        <strong style="color:var(--accent)">4.</strong> Clique em <strong style="color:var(--text)">▶ Executar → setupInicial</strong> (só na primeira vez). Autorize as permissões.
+      </div>
+      <div style="margin-bottom:12px">
+        <strong style="color:var(--accent)">5.</strong> Clique em <strong style="color:var(--text)">Implantar → Nova implantação → Aplicativo da Web</strong>
+      </div>
+      <div style="margin-bottom:12px">
+        <strong style="color:var(--accent)">6.</strong> Em "Quem tem acesso": selecione <strong style="color:var(--text)">Qualquer pessoa</strong>. Clique em Implantar.
+      </div>
+      <div>
+        <strong style="color:var(--accent)">7.</strong> Copie a URL gerada (começa com <code style="background:var(--surface3);padding:2px 6px;border-radius:4px">https://script.google.com/macros/s/...</code>) e cole no campo acima.
+      </div>
+    </div>
+    <div class="divider"></div>
+    <button class="btn btn-ghost btn-sm" onclick="openModal('modal-reset')">🗑 Reset completo (apagar tudo)</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">💾 Dados locais</div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:12px">Os dados ficam salvos no dispositivo mesmo sem internet. A sincronização com o Google Sheets acontece automaticamente.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" onclick="exportarBackupLocal()">⬇ Backup JSON</button>
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('import-json').click()">⬆ Restaurar JSON</button>
+      <input type="file" id="import-json" accept=".json" style="display:none" onchange="importarBackupLocal(event)">
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════ PAGE: SETUP ══════════════════════════ -->
+<div class="page active" id="pg-setup">
+  <div class="card">
+    <div class="card-title">Configuração da Prova</div>
+    <div class="form-row cols2">
+      <div><label>Disciplina</label><input type="text" id="cfg-disciplina" value="Ciências" oninput="autoSaveConfig()"></div>
+      <div><label>Turma / Série</label><input type="text" id="cfg-turma" value="9º ano EFAF" oninput="autoSaveConfig()"></div>
+    </div>
+    <div class="form-row cols3">
+      <div><label>Professor(a)</label><input type="text" id="cfg-professor" value="Lafaiete" oninput="autoSaveConfig()"></div>
+      <div><label>Trimestre</label>
+        <select id="cfg-trimestre" onchange="autoSaveConfig()">
+          <option>1º</option><option>2º</option><option>3º</option>
+        </select>
+      </div>
+      <div><label>Data</label><input type="text" id="cfg-data" value="12/03/2026" oninput="autoSaveConfig()"></div>
+    </div>
+    <div class="form-row cols2">
+      <div><label>Questões objetivas</label><input type="number" id="cfg-nobj" value="8" min="1" max="20" onchange="buildGabarito();autoSaveConfig()"></div>
+      <div><label>Questões discursivas</label><input type="number" id="cfg-ndisc" value="2" min="0" max="10" onchange="buildGabarito();autoSaveConfig()"></div>
+    </div>
+    <div class="form-row cols2">
+      <div><label>Alternativas por questão</label>
+        <select id="cfg-nalts" onchange="buildGabarito();autoSaveConfig()">
+          <option value="3">3 (A B C)</option>
+          <option value="4" selected>4 (A B C D)</option>
+          <option value="5">5 (A B C D E)</option>
+        </select>
+      </div>
+      <div><label>Randomizar questões?</label>
+        <select id="cfg-random" onchange="autoSaveConfig()">
+          <option value="1">Sim — por aluno</option>
+          <option value="0">Não</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Gabarito — Questões Objetivas</div>
+    <div id="gabarito-builder"></div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn btn-ghost btn-sm" onclick="buildGabarito()">↺ Atualizar</button>
+      <button class="btn btn-ghost btn-sm" onclick="pushGabarito()">☁ Salvar no Sheets</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-header">
+      <span class="card-title" style="margin-bottom:0">Lista de Alunos</span>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-ghost btn-sm" onclick="pullAlunos()">☁ Carregar</button>
+        <button class="btn btn-ghost btn-sm" onclick="openModal('modal-aluno')">+ Novo</button>
+      </div>
+    </div>
+    <div id="student-list"><div class="empty"><p>Nenhum aluno adicionado</p></div></div>
+    <div class="divider"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" onclick="importSampleStudents()">📋 Exemplo</button>
+      <button class="btn btn-ghost btn-sm" onclick="pushAlunos()">☁ Salvar no Sheets</button>
+      <button class="btn btn-primary" onclick="generateAllExams()">⚡ Gerar provas</button>
+    </div>
+  </div>
+
+  <div class="card" id="gen-exams-card" style="display:none">
+    <div class="section-header">
+      <span class="card-title" style="margin-bottom:0">Provas Geradas</span>
+      <span class="badge badge-green" id="gen-count"></span>
+    </div>
+    <div id="generated-exam-list"></div>
+    <div class="divider"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" onclick="pushProvas()">☁ Salvar no Sheets</button>
+      <button class="btn btn-green btn-full" onclick="downloadAllExams()">⬇ Baixar todas (.docx)</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════ PAGE: SCAN ══════════════════════════ -->
+<div class="page" id="pg-scan">
+  <div class="steps">
+    <div class="step-dot active" id="step1">1</div>
+    <div class="step-line"></div>
+    <div class="step-dot pending" id="step2">2</div>
+    <div class="step-line"></div>
+    <div class="step-dot pending" id="step3">3</div>
+  </div>
+
+  <div class="card" id="scan-step1">
+    <div class="card-title">Passo 1 — Ler QR Code da prova</div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:14px">Aponte a câmera para o QR Code impresso na capa da prova.</p>
+    <div class="scan-area" id="scan-area" onclick="startQRScan()">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5" opacity=".4">
+        <rect x="2" y="2" width="8" height="8" rx="1"/><rect x="14" y="2" width="8" height="8" rx="1"/>
+        <rect x="2" y="14" width="8" height="8" rx="1"/>
+        <rect x="6" y="6" width="2" height="2" fill="white" stroke="none"/>
+        <rect x="18" y="6" width="2" height="2" fill="white" stroke="none"/>
+        <rect x="6" y="18" width="2" height="2" fill="white" stroke="none"/>
+        <rect x="14" y="14" width="2" height="2" fill="white" stroke="none"/>
+        <rect x="18" y="14" width="2" height="2" fill="white" stroke="none"/>
+        <rect x="14" y="18" width="2" height="2" fill="white" stroke="none"/>
+        <rect x="18" y="18" width="2" height="2" fill="white" stroke="none"/>
+      </svg>
+      <p>Toque para ativar câmera</p>
+    </div>
+    <div id="qr-reader-container" style="display:none;margin-top:12px"></div>
+    <div class="divider"></div>
+    <p style="font-size:11px;color:var(--text2);margin-bottom:8px">Ou informe o código manualmente:</p>
+    <div style="display:flex;gap:8px">
+      <input type="text" id="manual-qr" placeholder="Ex: ALU001-V1" style="flex:1">
+      <button class="btn btn-ghost" onclick="processManualQR()">OK</button>
+    </div>
+  </div>
+
+  <div class="card" id="scan-step2" style="display:none">
+    <div class="card-title">Passo 2 — Confirmar Aluno</div>
+    <div class="student-item" style="margin-bottom:12px">
+      <div>
+        <div class="student-name" id="scan-student-name">—</div>
+        <div class="student-meta" id="scan-student-meta">—</div>
+      </div>
+      <div class="badge badge-blue" id="scan-versao-badge">V1</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost btn-full" onclick="resetScan()">✕ Cancelar</button>
+      <button class="btn btn-primary btn-full" onclick="goToStep3()">Confirmar →</button>
+    </div>
+  </div>
+
+  <div class="card" id="scan-step3" style="display:none">
+    <div class="card-title">Passo 3 — Marcar Respostas</div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:14px">Toque nas bolhas conforme marcado na prova física.</p>
+    <div id="answer-input-grid"></div>
+    <div class="divider"></div>
+    <button class="btn btn-green btn-full" onclick="submitCorrection()">✓ Corrigir e salvar</button>
+  </div>
+
+  <div class="card" id="scan-result" style="display:none">
+    <div class="card-title">Resultado</div>
+    <div id="scan-result-content"></div>
+    <div class="divider"></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost btn-full" onclick="nextStudent()">→ Próximo aluno</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════ PAGE: RESULTS ══════════════════════════ -->
+<div class="page" id="pg-results">
+  <div class="card">
+    <div class="card-title">Resumo Geral</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;text-align:center">
+      <div><div style="font-size:28px;font-weight:800;color:var(--accent)" id="stat-corrigidos">0</div><div style="font-size:11px;color:var(--text2)">Corrigidas</div></div>
+      <div><div style="font-size:28px;font-weight:800;color:var(--green)" id="stat-media">—</div><div style="font-size:11px;color:var(--text2)">Média</div></div>
+      <div><div style="font-size:28px;font-weight:800;color:var(--yellow)" id="stat-pendentes">0</div><div style="font-size:11px;color:var(--text2)">Pendentes</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-header">
+      <span class="card-title" style="margin-bottom:0">Por Aluno</span>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-ghost btn-sm" onclick="pullResultados()">☁ Carregar</button>
+      </div>
+    </div>
+    <div id="results-list"><div class="empty"><p>Nenhuma prova corrigida ainda.</p></div></div>
+  </div>
+
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <button class="btn btn-green btn-full" onclick="exportXLSX()">📊 Exportar planilha (.xlsx)</button>
+    <button class="btn btn-ghost btn-full" onclick="clearResults()">🗑 Limpar resultados</button>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="modal-aluno">
+  <div class="modal">
+    <div class="modal-title">Adicionar Aluno</div>
+    <div class="form-row"><div><label>Nome completo</label><input type="text" id="new-student-name" placeholder="Nome do aluno"></div></div>
+    <div class="form-row cols2">
+      <div><label>Nº matrícula</label><input type="text" id="new-student-id" placeholder="Ex: 2024001"></div>
+      <div><label>Grupo</label>
+        <select id="new-student-group">
+          <option value="regular">Regular</option>
+          <option value="tdah">TDAH</option>
+          <option value="di">DI</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn btn-ghost btn-full" onclick="closeModal('modal-aluno')">Cancelar</button>
+      <button class="btn btn-primary btn-full" onclick="addStudent()">Adicionar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-preview">
+  <div class="modal">
+    <div class="modal-title" id="preview-title">Prova</div>
+    <div id="preview-content"></div>
+    <div style="margin-top:16px;display:flex;gap:8px">
+      <button class="btn btn-ghost btn-full" onclick="closeModal('modal-preview')">Fechar</button>
+      <button class="btn btn-primary btn-full" id="preview-download-btn">⬇ .docx</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-reset">
+  <div class="modal">
+    <div class="modal-title">⚠️ Reset completo</div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Isso apagará <strong>todos os dados</strong> do app e do Google Sheets. Tem certeza?</p>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost btn-full" onclick="closeModal('modal-reset')">Cancelar</button>
+      <button class="btn btn-red btn-full" onclick="resetCompleto()">Apagar tudo</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════════
+//  ESTADO GLOBAL
+// ════════════════════════════════════════════════════
+const STATE = {
+  students: [],
+  gabarito: [],
+  exams: {},
+  results: [],
+  currentScan: null,
+  gsUrl: '',
+  syncing: false,
+};
+
+// ════════════════════════════════════════════════════
+//  LOCAL STORAGE — persistência no dispositivo
+// ════════════════════════════════════════════════════
+const LS_KEY = 'corretoapp_v2';
+
+function saveLocal() {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify({
+      students: STATE.students,
+      gabarito: STATE.gabarito,
+      exams: STATE.exams,
+      results: STATE.results,
+      gsUrl: STATE.gsUrl,
+      cfg: {
+        disciplina: v('cfg-disciplina'),
+        turma: v('cfg-turma'),
+        professor: v('cfg-professor'),
+        trimestre: v('cfg-trimestre'),
+        data: v('cfg-data'),
+        nobj: v('cfg-nobj'),
+        ndisc: v('cfg-ndisc'),
+        nalts: v('cfg-nalts'),
+        random: v('cfg-random'),
+      }
+    }));
+  } catch(e) { console.warn('localStorage cheio', e); }
+}
+
+function loadLocal() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return;
+    const d = JSON.parse(raw);
+    STATE.students = d.students || [];
+    STATE.gabarito = d.gabarito || [];
+    STATE.exams    = d.exams    || {};
+    STATE.results  = d.results  || [];
+    STATE.gsUrl    = d.gsUrl    || '';
+    if (d.cfg) {
+      setv('cfg-disciplina', d.cfg.disciplina);
+      setv('cfg-turma',      d.cfg.turma);
+      setv('cfg-professor',  d.cfg.professor);
+      setv('cfg-trimestre',  d.cfg.trimestre);
+      setv('cfg-data',       d.cfg.data);
+      setv('cfg-nobj',       d.cfg.nobj);
+      setv('cfg-ndisc',      d.cfg.ndisc);
+      setv('cfg-nalts',      d.cfg.nalts);
+      setv('cfg-random',     d.cfg.random);
+    }
+    if (STATE.gsUrl) document.getElementById('gs-url').value = STATE.gsUrl;
+  } catch(e) { console.warn('Erro loadLocal', e); }
+}
+
+function autoSaveConfig() { saveLocal(); }
+
+// helpers
+function v(id) { const el=document.getElementById(id); return el?el.value:''; }
+function setv(id, val) { const el=document.getElementById(id); if(el && val!==undefined && val!==null) el.value=val; }
+
+// ════════════════════════════════════════════════════
+//  GOOGLE SHEETS API
+// ════════════════════════════════════════════════════
+function setSyncStatus(state, msg, sub) {
+  const dot = document.getElementById('sync-dot');
+  const gsDot = document.getElementById('gs-dot');
+  const txt = document.getElementById('gs-status-text');
+  const sub2 = document.getElementById('gs-status-sub');
+  [dot, gsDot].forEach(d => { if(d){ d.className='sync-dot '+state; }});
+  if(txt) txt.textContent = msg || '';
+  if(sub2) sub2.textContent = sub || '';
+}
+
+async function gsRequest(method, body) {
+  const url = STATE.gsUrl;
+  if (!url) throw new Error('URL do Apps Script não configurada. Vá em ⚙ Configurações.');
+  const opts = { method, mode: 'cors' };
+  if (method === 'POST') {
+    opts.headers = { 'Content-Type': 'text/plain' }; // Apps Script exige text/plain para CORS simples
+    opts.body = JSON.stringify(body);
+  }
+  const fullUrl = method === 'GET' && body
+    ? url + '?' + new URLSearchParams(body).toString()
+    : url;
+  const res = await fetch(fullUrl, opts);
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.erro || 'Erro desconhecido do servidor');
+  return json.data;
+}
+
+async function gsGet(acao) {
+  return gsRequest('GET', { acao });
+}
+
+async function gsPost(acao, dados) {
+  return gsRequest('POST', { acao, dados });
+}
+
+// ── Salvar URL ─────────────────────────────────────
+function salvarGSUrl() {
+  const url = document.getElementById('gs-url').value.trim();
+  if (!url.startsWith('https://script.google.com')) {
+    toast('URL inválida. Deve começar com https://script.google.com', 'var(--red)');
+    return;
+  }
+  STATE.gsUrl = url;
+  saveLocal();
+  toast('URL salva!', 'var(--green)');
+  testarConexao();
+}
+
+// ── Testar conexão ─────────────────────────────────
+async function testarConexao() {
+  setSyncStatus('loading', 'Testando conexão…', '');
+  try {
+    const data = await gsGet('ping');
+    setSyncStatus('ok', '✅ Conectado ao Google Sheets', 'Última sync: ' + new Date().toLocaleTimeString('pt-BR'));
+    toast('Conexão OK!', 'var(--green)');
+  } catch(e) {
+    setSyncStatus('err', '❌ Falha na conexão', e.message);
+    toast('Erro: ' + e.message, 'var(--red)');
+  }
+}
+
+// ── Push / Pull individuais ────────────────────────
+async function pushAlunos() {
+  try {
+    setSyncStatus('loading','Salvando alunos…','');
+    await gsPost('salvarAlunos', STATE.students);
+    setSyncStatus('ok','✅ Alunos salvos no Sheets','');
+    toast('Alunos salvos no Google Sheets!', 'var(--green)');
+  } catch(e) { setSyncStatus('err','Erro',''); toast(e.message,'var(--red)'); }
+}
+
+async function pullAlunos() {
+  try {
+    setSyncStatus('loading','Carregando alunos…','');
+    const lista = await gsGet('getAlunos');
+    STATE.students = lista;
+    saveLocal();
+    renderStudents();
+    setSyncStatus('ok','✅ Alunos carregados','');
+    toast(`${lista.length} alunos carregados!`, 'var(--green)');
+  } catch(e) { setSyncStatus('err','Erro',''); toast(e.message,'var(--red)'); }
+}
+
+async function pushGabarito() {
+  try {
+    setSyncStatus('loading','Salvando gabarito…','');
+    await gsPost('salvarGabarito', STATE.gabarito);
+    setSyncStatus('ok','✅ Gabarito salvo','');
+    toast('Gabarito salvo no Google Sheets!','var(--green)');
+  } catch(e) { setSyncStatus('err','Erro',''); toast(e.message,'var(--red)'); }
+}
+
+async function pushProvas() {
+  try {
+    setSyncStatus('loading','Salvando provas…','');
+    await gsPost('salvarProvas', STATE.exams);
+    setSyncStatus('ok','✅ Provas salvas','');
+    toast('Provas salvas no Google Sheets!','var(--green)');
+  } catch(e) { setSyncStatus('err','Erro',''); toast(e.message,'var(--red)'); }
+}
+
+async function pullResultados() {
+  try {
+    setSyncStatus('loading','Carregando resultados…','');
+    const lista = await gsGet('getResultados');
+    STATE.results = lista;
+    saveLocal();
+    renderResults();
+    setSyncStatus('ok','✅ Resultados carregados','');
+    toast(`${lista.length} resultados carregados!`,'var(--green)');
+  } catch(e) { setSyncStatus('err','Erro',''); toast(e.message,'var(--red)'); }
+}
+
+async function pushResultado(resultado) {
+  if (!STATE.gsUrl) return; // silently skip if not configured
+  try {
+    setSyncStatus('loading','Enviando resultado…','');
+    await gsPost('salvarResultado', resultado);
+    setSyncStatus('ok','✅ Resultado enviado ao Sheets', new Date().toLocaleTimeString('pt-BR'));
+  } catch(e) {
+    setSyncStatus('err','⚠ Resultado salvo localmente','Sheets indisponível');
+    console.warn('pushResultado falhou:', e.message);
+  }
+}
+
+async function sincronizarTudo() {
+  toast('Sincronizando…','var(--yellow)');
+  try {
+    // Push config
+    const cfg = { disciplina:v('cfg-disciplina'), turma:v('cfg-turma'), professor:v('cfg-professor'),
+                  trimestre:v('cfg-trimestre'), data:v('cfg-data') };
+    await gsPost('salvarConfig', cfg);
+    await gsPost('salvarAlunos', STATE.students);
+    await gsPost('salvarGabarito', STATE.gabarito);
+    await gsPost('salvarProvas', STATE.exams);
+    for (const r of STATE.results) await gsPost('salvarResultado', r);
+    setSyncStatus('ok','✅ Tudo sincronizado','');
+    toast('Sincronização completa!','var(--green)');
+  } catch(e) {
+    setSyncStatus('err','Erro na sincronização',e.message);
+    toast('Erro: '+e.message,'var(--red)');
+  }
+}
+
+async function resetCompleto() {
+  closeModal('modal-reset');
+  try {
+    if (STATE.gsUrl) await gsPost('resetCompleto', {});
+  } catch(e) {}
+  STATE.students=[];STATE.gabarito=[];STATE.exams={};STATE.results=[];
+  saveLocal();
+  renderStudents();renderResults();renderGeneratedExams();buildGabarito();
+  setSyncStatus('off','Não configurado','');
+  toast('Reset completo realizado!','var(--yellow)');
+}
+
+// ── Backup / Restore JSON local ────────────────────
+function exportarBackupLocal() {
+  const blob = new Blob([JSON.stringify({
+    students:STATE.students, gabarito:STATE.gabarito,
+    exams:STATE.exams, results:STATE.results
+  }, null, 2)], {type:'application/json'});
+  saveAs(blob, `backup_corretoapp_${new Date().toISOString().slice(0,10)}.json`);
+}
+
+function importarBackupLocal(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const d = JSON.parse(e.target.result);
+      STATE.students = d.students || [];
+      STATE.gabarito = d.gabarito || [];
+      STATE.exams    = d.exams    || {};
+      STATE.results  = d.results  || [];
+      saveLocal();
+      renderStudents();renderResults();renderGeneratedExams();
+      buildGabarito();
+      toast('Backup restaurado!','var(--green)');
+    } catch(err) { toast('Arquivo inválido','var(--red)'); }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+// ════════════════════════════════════════════════════
+//  NAV
+// ════════════════════════════════════════════════════
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('.nav-tab').forEach((t,i)=>{
+    t.classList.toggle('active',['pg-setup','pg-scan','pg-results','pg-config'][i]===id);
+  });
+  if(id==='pg-results') renderResults();
+}
+
+// ════════════════════════════════════════════════════
+//  TOAST
+// ════════════════════════════════════════════════════
+function toast(msg, color='var(--accent)') {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.style.borderColor=color;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer=setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+// ════════════════════════════════════════════════════
+//  MODAL
+// ════════════════════════════════════════════════════
+function openModal(id){document.getElementById(id).classList.add('open')}
+function closeModal(id){document.getElementById(id).classList.remove('open')}
+document.querySelectorAll('.modal-overlay').forEach(m=>{
+  m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open')});
+});
+
+// ════════════════════════════════════════════════════
+//  GABARITO BUILDER
+// ════════════════════════════════════════════════════
+function buildGabarito() {
+  const nObj  = parseInt(v('cfg-nobj'))  || 8;
+  const nDisc = parseInt(v('cfg-ndisc')) || 2;
+  const nAlts = parseInt(v('cfg-nalts')) || 4;
+  const altLabels = ['A','B','C','D','E'].slice(0,nAlts);
+
+  const existing = {};
+  STATE.gabarito.forEach(g=>existing[g.q]=g.answer);
+  STATE.gabarito = [];
+  const container = document.getElementById('gabarito-builder');
+  container.innerHTML = '';
+
+  for(let i=1;i<=nDisc;i++) STATE.gabarito.push({q:i,answer:'DISC',type:'disc'});
+  for(let i=nDisc+1;i<=nDisc+nObj;i++) STATE.gabarito.push({q:i,answer:existing[i]||null,type:'obj'});
+
+  if(nDisc>0){
+    const disc=document.createElement('div');
+    disc.style.cssText='background:var(--surface3);border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:12px;color:var(--text2)';
+    disc.innerHTML=`<span style="color:var(--yellow);font-weight:700">✎ Discursivas Q1–Q${nDisc}</span> — sem gabarito automático`;
+    container.appendChild(disc);
+  }
+
+  STATE.gabarito.filter(g=>g.type==='obj').forEach(g=>{
+    const block=document.createElement('div');
+    block.className='question-block';
+    block.innerHTML=`
+      <div class="q-header">
+        <span class="q-num">Q${g.q}</span>
+        <span style="font-size:11px;color:var(--text2)">Gabarito:</span>
+      </div>
+      <div class="alternatives-grid">
+        ${altLabels.map(l=>`
+          <button class="alt-btn ${g.answer===l?'selected':''}" data-q="${g.q}" data-l="${l}" onclick="selectAnswer(${g.q},'${l}')">
+            ${l}
+          </button>`).join('')}
+      </div>`;
+    container.appendChild(block);
+  });
+}
+
+function selectAnswer(q,letter) {
+  const gab=STATE.gabarito.find(g=>g.q===q);
+  if(gab) gab.answer=letter;
+  document.querySelectorAll(`.alt-btn[data-q="${q}"]`).forEach(b=>{
+    b.classList.toggle('selected',b.dataset.l===letter);
+  });
+  saveLocal();
+}
+
+// ════════════════════════════════════════════════════
+//  ALUNOS
+// ════════════════════════════════════════════════════
+function addStudent() {
+  const name=document.getElementById('new-student-name').value.trim();
+  const sid=document.getElementById('new-student-id').value.trim()||`ALU${String(STATE.students.length+1).padStart(3,'0')}`;
+  const group=document.getElementById('new-student-group').value;
+  if(!name){toast('Informe o nome','var(--red)');return;}
+  STATE.students.push({id:sid,name,group});
+  closeModal('modal-aluno');
+  document.getElementById('new-student-name').value='';
+  document.getElementById('new-student-id').value='';
+  renderStudents();saveLocal();
+  toast('Aluno adicionado!','var(--green)');
+}
+
+function removeStudent(sid) {
+  if(!confirm('Remover aluno?'))return;
+  STATE.students=STATE.students.filter(s=>s.id!==sid);
+  renderStudents();saveLocal();
+}
+
+function importSampleStudents() {
+  const samples=[
+    {id:'ALU001',name:'Ana Carolina Silva',group:'regular'},
+    {id:'ALU002',name:'Bruno Henrique Costa',group:'tdah'},
+    {id:'ALU003',name:'Camila Ferreira',group:'regular'},
+    {id:'ALU004',name:'Diego Souza Oliveira',group:'di'},
+    {id:'ALU005',name:'Eduarda Lima',group:'regular'},
+  ];
+  samples.forEach(s=>{if(!STATE.students.find(e=>e.id===s.id))STATE.students.push(s);});
+  renderStudents();saveLocal();
+  toast('5 alunos importados!','var(--green)');
+}
+
+function renderStudents() {
+  const el=document.getElementById('student-list');
+  if(!STATE.students.length){el.innerHTML='<div class="empty"><p>Nenhum aluno</p></div>';return;}
+  const gBadge={regular:'badge-blue',tdah:'badge-yellow',di:'badge-green'};
+  const gLabel={regular:'Regular',tdah:'TDAH',di:'DI'};
+  el.innerHTML=STATE.students.map(s=>`
+    <div class="student-item">
+      <div><div class="student-name">${s.name}</div><div class="student-meta">${s.id}</div></div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <span class="badge ${gBadge[s.group]}">${gLabel[s.group]}</span>
+        <button class="btn btn-ghost btn-sm" style="padding:4px 8px" onclick="removeStudent('${s.id}')">✕</button>
+      </div>
+    </div>`).join('');
+}
+
+// ════════════════════════════════════════════════════
+//  EXAM GENERATION
+// ════════════════════════════════════════════════════
+function shuffleArray(arr){const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+function generateAllExams() {
+  if(!STATE.students.length){toast('Adicione alunos primeiro!','var(--red)');return;}
+  const unanswered=STATE.gabarito.filter(g=>g.type==='obj'&&!g.answer);
+  if(unanswered.length){toast('Defina o gabarito de todas as objetivas!','var(--red)');return;}
+  const doRandom=v('cfg-random')==='1';
+  STATE.exams={};
+  STATE.students.forEach((s,idx)=>{
+    const version=idx+1;
+    const objQs=STATE.gabarito.filter(g=>g.type==='obj');
+    const qOrder=doRandom?shuffleArray(objQs.map(g=>g.q)):objQs.map(g=>g.q);
+    const key=`${s.id}-V${version}`;
+    STATE.exams[key]={key,studentId:s.id,studentName:s.name,version,qOrder,gabarito:STATE.gabarito};
+  });
+  saveLocal();renderGeneratedExams();
+  toast(`${STATE.students.length} provas geradas!`,'var(--green)');
+}
+
+function renderGeneratedExams() {
+  const card=document.getElementById('gen-exams-card');
+  const list=document.getElementById('generated-exam-list');
+  const count=document.getElementById('gen-count');
+  const keys=Object.keys(STATE.exams);
+  if(!keys.length){card.style.display='none';return;}
+  card.style.display='block';
+  count.textContent=`${keys.length} provas`;
+  const corrected=new Set(STATE.results.map(r=>r.examKey));
+  list.innerHTML=keys.map(k=>{
+    const ex=STATE.exams[k];
+    const ok=corrected.has(k);
+    return `
+      <div class="student-item">
+        <div><div class="student-name">${ex.studentName}</div><div class="student-meta">${ex.key}</div></div>
+        <div style="display:flex;gap:6px;align-items:center">
+          ${ok?'<span class="badge badge-green">✓ Corrigida</span>':'<span class="badge badge-yellow">Pendente</span>'}
+          <button class="btn btn-ghost btn-sm" onclick="previewExam('${k}')">👁</button>
+          <button class="btn btn-primary btn-sm" onclick="downloadExam('${k}')">⬇</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════════════
+//  DOCX GENERATION
+// ════════════════════════════════════════════════════
+// ── QR Code PNG generator — robusto, aguarda img.onload ────────────
+function generateQRPng(text, size=220) {
+  return new Promise((resolve) => {
+    try {
+      const tmp = document.createElement('div');
+      tmp.style.cssText = 'position:fixed;left:-9999px;top:0;width:'+size+'px;height:'+size+'px;background:#fff;';
+      document.body.appendChild(tmp);
+
+      new QRCode(tmp, {
+        text: text, width: size, height: size,
+        colorDark: '#000000', colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.H
+      });
+
+      function extract(attempts) {
+        const cv  = tmp.querySelector('canvas');
+        const img = tmp.querySelector('img');
+        if (cv) {
+          try { const b64 = cv.toDataURL('image/png').split(',')[1]; document.body.removeChild(tmp); resolve(b64); }
+          catch(e) { document.body.removeChild(tmp); resolve(null); }
+          return;
+        }
+        if (img) {
+          function drawImg() {
+            const c2 = document.createElement('canvas');
+            c2.width = size; c2.height = size;
+            const ctx = c2.getContext('2d');
+            ctx.fillStyle='#fff'; ctx.fillRect(0,0,size,size);
+            try { ctx.drawImage(img,0,0,size,size); const b64=c2.toDataURL('image/png').split(',')[1]; document.body.removeChild(tmp); resolve(b64); }
+            catch(e) { document.body.removeChild(tmp); resolve(null); }
+          }
+          if (img.complete && img.naturalWidth>0) { drawImg(); return; }
+          img.onload = drawImg;
+          img.onerror = () => { document.body.removeChild(tmp); resolve(null); };
+          return;
+        }
+        if (attempts < 25) { setTimeout(()=>extract(attempts+1), 60); }
+        else { document.body.removeChild(tmp); resolve(null); }
+      }
+      setTimeout(()=>extract(0), 100);
+    } catch(e) { console.error('QR error',e); resolve(null); }
+  });
+}
+
+// ── Monta o XML de drawing para imagem embutida no docx ─────────────
+function imageDrawingXml(rId, widthEmu, heightEmu, descr) {
+  return `<w:drawing>
+  <wp:inline distT="0" distB="0" distL="0" distR="0"
+    xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">
+    <wp:extent cx="${widthEmu}" cy="${heightEmu}"/>
+    <wp:effectExtent l="0" t="0" r="0" b="0"/>
+    <wp:docPr id="1" name="${descr}"/>
+    <wp:cNvGraphicFramePr>
+      <a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/>
+    </wp:cNvGraphicFramePr>
+    <a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+      <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
+        <pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
+          <pic:nvPicPr>
+            <pic:cNvPr id="0" name="${descr}"/>
+            <pic:cNvPicPr><a:picLocks noChangeAspect="1" noChangeArrowheads="1"/></pic:cNvPicPr>
+          </pic:nvPicPr>
+          <pic:blipFill>
+            <a:blip r:embed="${rId}"/>
+            <a:stretch><a:fillRect/></a:stretch>
+          </pic:blipFill>
+          <pic:spPr bwMode="auto">
+            <a:xfrm><a:off x="0" y="0"/><a:ext cx="${widthEmu}" cy="${heightEmu}"/></a:xfrm>
+            <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+          </pic:spPr>
+        </pic:pic>
+      </a:graphicData>
+    </a:graphic>
+  </wp:inline>
+</w:drawing>`;
+}
+
+async function generateDocx(examKey) {
+  const ex=STATE.exams[examKey];
+  const student=STATE.students.find(s=>s.id===ex.studentId);
+  const cfg={disciplina:v('cfg-disciplina'),turma:v('cfg-turma'),professor:v('cfg-professor'),trimestre:v('cfg-trimestre'),data:v('cfg-data')};
+  const nAlts=parseInt(v('cfg-nalts'));
+  const altLabels=['A','B','C','D','E'].slice(0,nAlts);
+  const nDisc=parseInt(v('cfg-ndisc'))||0;
+
+  // ── Gerar QR Code como PNG base64 ──
+  const qrBase64 = await generateQRPng(examKey, 200);
+
+  const gabRows=STATE.gabarito.map(g=>{
+    if(g.type==='disc') return `<w:tr><w:tc><w:tcPr><w:tcW w:w="720" w:type="dxa"/></w:tcPr><w:p><w:r><w:rPr><w:b/></w:rPr><w:t>${g.q}</w:t></w:r></w:p></w:tc><w:tc><w:tcPr><w:tcW w:w="4000" w:type="dxa"/></w:tcPr><w:p><w:r><w:t>Discursiva</w:t></w:r></w:p></w:tc></w:tr>`;
+    const alts=altLabels.map(l=>`<w:tc><w:tcPr><w:tcW w:w="${Math.floor(4000/nAlts)}" w:type="dxa"/></w:tcPr><w:p><w:r><w:t>${l}</w:t></w:r></w:p></w:tc>`).join('');
+    return `<w:tr><w:tc><w:tcPr><w:tcW w:w="720" w:type="dxa"/></w:tcPr><w:p><w:r><w:rPr><w:b/></w:rPr><w:t>${g.q}</w:t></w:r></w:p></w:tc>${alts}</w:tr>`;
+  }).join('');
+
+  const qBlocks=[];
+  for(let i=1;i<=nDisc;i++) qBlocks.push(`
+    <w:p><w:pPr><w:spacing w:before="200"/></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">Questão ${i} (1,0) — </w:t></w:r></w:p>
+    <w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="4" w:space="1" w:color="AAAAAA"/></w:pBdr></w:pPr><w:r><w:t> </w:t></w:r></w:p>
+    <w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="4" w:space="1" w:color="AAAAAA"/></w:pBdr></w:pPr><w:r><w:t> </w:t></w:r></w:p>
+    <w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="4" w:space="1" w:color="AAAAAA"/></w:pBdr></w:pPr><w:r><w:t> </w:t></w:r></w:p>`);
+
+  ex.qOrder.forEach((origQ,idx)=>{
+    const dn=nDisc+idx+1;
+    const altRows=altLabels.map(l=>`<w:p><w:pPr><w:ind w:left="360"/></w:pPr><w:r><w:t xml:space="preserve">${l})  _____________________________________________</w:t></w:r></w:p>`).join('');
+    qBlocks.push(`<w:p><w:pPr><w:spacing w:before="180"/></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">Questão ${dn} (1,0) — </w:t></w:r></w:p>${altRows}`);
+  });
+
+  // QR cell content: imagem se gerada, senão texto
+  // 1.8cm × 1.8cm = ~645000 EMU cada
+  const QR_EMU = 1020000; // ~2.8cm
+  const qrCellContent = qrBase64
+    ? `<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r>${imageDrawingXml('rId2', QR_EMU, QR_EMU, 'QRCode')}</w:r></w:p>
+       <w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:sz w:val="14"/></w:rPr><w:t xml:space="preserve">${examKey}</w:t></w:r></w:p>`
+    : `<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t>QR Code</w:t></w:r></w:p>
+       <w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:sz w:val="16"/></w:rPr><w:t xml:space="preserve">${examKey}</w:t></w:r></w:p>`;
+
+  const docXml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document
+  xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas"
+  xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+  xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+  xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  mc:Ignorable="w14">
+<w:body>
+  <w:tbl><w:tblPr><w:tblW w:w="5720" w:type="dxa"/>
+    <w:tblBorders><w:top w:val="single" w:sz="4" w:color="CCCCCC"/><w:left w:val="single" w:sz="4" w:color="CCCCCC"/><w:bottom w:val="single" w:sz="4" w:color="CCCCCC"/><w:right w:val="single" w:sz="4" w:color="CCCCCC"/><w:insideH w:val="single" w:sz="4" w:color="CCCCCC"/><w:insideV w:val="single" w:sz="4" w:color="CCCCCC"/></w:tblBorders>
+  </w:tblPr>
+  <w:tr><w:tc><w:tcPr><w:tcW w:w="720" w:type="dxa"/><w:shd w:val="clear" w:fill="D5E8F0"/></w:tcPr><w:p><w:r><w:rPr><w:b/></w:rPr><w:t>Nº</w:t></w:r></w:p></w:tc><w:tc><w:tcPr><w:tcW w:w="5000" w:type="dxa"/><w:shd w:val="clear" w:fill="D5E8F0"/></w:tcPr><w:p><w:r><w:rPr><w:b/></w:rPr><w:t>Gabarito</w:t></w:r></w:p></w:tc></w:tr>
+  ${gabRows}
+  </w:tbl>
+  <w:p><w:pPr><w:spacing w:after="160"/></w:pPr></w:p>
+  <w:tbl><w:tblPr><w:tblW w:w="9026" w:type="dxa"/>
+    <w:tblBorders><w:top w:val="single" w:sz="4" w:color="CCCCCC"/><w:left w:val="single" w:sz="4" w:color="CCCCCC"/><w:bottom w:val="single" w:sz="4" w:color="CCCCCC"/><w:right w:val="single" w:sz="4" w:color="CCCCCC"/><w:insideH w:val="single" w:sz="4" w:color="CCCCCC"/><w:insideV w:val="single" w:sz="4" w:color="CCCCCC"/></w:tblBorders>
+  </w:tblPr>
+  <w:tr>
+    <w:tc><w:tcPr><w:tcW w:w="1300" w:type="dxa"/></w:tcPr><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:t>Colégio</w:t></w:r></w:p></w:tc>
+    <w:tc><w:tcPr><w:tcW w:w="5426" w:type="dxa"/></w:tcPr>
+      <w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="28"/></w:rPr><w:t>COLÉGIO CORAÇÃO FELIZ</w:t></w:r></w:p>
+      <w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:t>Tubarão – SC</w:t></w:r></w:p>
+      <w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t>AVALIAÇÃO MENSAL 1</w:t></w:r></w:p>
+      <w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:sz w:val="18"/></w:rPr><w:t xml:space="preserve">Código: ${examKey}</w:t></w:r></w:p>
+    </w:tc>
+    <w:tc><w:tcPr><w:tcW w:w="2300" w:type="dxa"/></w:tcPr>
+      <w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t>NOTA</w:t></w:r></w:p>
+      <w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:t>___________</w:t></w:r></w:p>
+    </w:tc>
+  </w:tr>
+  <w:tr>
+    <w:tc><w:tcPr><w:tcW w:w="1300" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>
+      ${qrCellContent}
+    </w:tc>
+    <w:tc><w:tcPr><w:tcW w:w="5426" w:type="dxa"/></w:tcPr>
+      <w:p><w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">Professor(a): </w:t></w:r><w:r><w:t xml:space="preserve">${cfg.professor}   </w:t></w:r><w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">Disciplina: </w:t></w:r><w:r><w:t xml:space="preserve">${cfg.disciplina}   </w:t></w:r><w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">Trimestre: </w:t></w:r><w:r><w:t>${cfg.trimestre}º</w:t></w:r></w:p>
+      <w:p><w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">Aluno(a): </w:t></w:r><w:r><w:t xml:space="preserve">${student.name}   </w:t></w:r><w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">Turma: </w:t></w:r><w:r><w:t xml:space="preserve">${cfg.turma}   </w:t></w:r><w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">Data: </w:t></w:r><w:r><w:t>${cfg.data}</w:t></w:r></w:p>
+    </w:tc>
+    <w:tc><w:tcPr><w:tcW w:w="2300" w:type="dxa"/></w:tcPr>
+      <w:p><w:r><w:t xml:space="preserve">Assinatura: ____________</w:t></w:r></w:p>
+      <w:p><w:r><w:t xml:space="preserve">Data: ___/___/______</w:t></w:r></w:p>
+    </w:tc>
+  </w:tr>
+  <w:tr>
+    <w:tc><w:tcPr><w:tcW w:w="9026" w:type="dxa"/><w:gridSpan w:val="3"/></w:tcPr>
+      <w:p><w:r><w:rPr><w:sz w:val="18"/></w:rPr><w:t>Sua avaliação será corrigida conforme as opções marcadas. Não rasure! Pinte com caneta preta ou azul.</w:t></w:r></w:p>
+    </w:tc>
+  </w:tr>
+  </w:tbl>
+  <w:p><w:pPr><w:spacing w:after="160"/></w:pPr></w:p>
+  ${qBlocks.join('\n')}
+  <w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1000" w:right="1000" w:bottom="1000" w:left="1000"/></w:sectPr>
+</w:body></w:document>`;
+
+  // ── Montar relacionamentos (com imagem QR se disponível) ──
+  const relsXml = qrBase64
+    ? `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/qr.png"/>
+</Relationships>`
+    : `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>`;
+
+  const contentTypesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Default Extension="png" ContentType="image/png"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>`;
+
+  const zip=new JSZip();
+  zip.file('[Content_Types].xml', contentTypesXml);
+  zip.file('_rels/.rels',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`);
+  zip.file('word/document.xml', docXml);
+  zip.file('word/_rels/document.xml.rels', relsXml);
+  if (qrBase64) {
+    zip.file('word/media/qr.png', qrBase64, {base64: true});
+  }
+  return await zip.generateAsync({type:'blob'});
+}
+
+async function downloadExam(key) {
+  const blob=await generateDocx(key);
+  const ex=STATE.exams[key];
+  saveAs(blob,`prova_${ex.studentName.replace(/\s+/g,'_')}_${key}.docx`);
+}
+
+async function downloadAllExams() {
+  const keys=Object.keys(STATE.exams);
+  for(const key of keys){await downloadExam(key);await new Promise(r=>setTimeout(r,250));}
+  toast('Download concluído!','var(--green)');
+}
+
+function previewExam(key) {
+  const ex=STATE.exams[key];
+  const nAlts=parseInt(v('cfg-nalts'));
+  const altLabels=['A','B','C','D','E'].slice(0,nAlts);
+  const nDisc=parseInt(v('cfg-ndisc'))||0;
+  document.getElementById('preview-title').textContent=`Prova — ${ex.studentName}`;
+  const content=document.getElementById('preview-content');
+  content.innerHTML='';
+
+  // QR code box
+  const qrWrap=document.createElement('div');
+  qrWrap.style.cssText='text-align:center;margin-bottom:14px';
+  const qrBox=document.createElement('div');
+  qrBox.className='qr-preview';qrBox.style.display='inline-block';
+  qrWrap.appendChild(qrBox);
+  content.appendChild(qrWrap);
+  const meta=document.createElement('p');
+  meta.style.cssText='font-size:12px;color:var(--text2);text-align:center;margin-bottom:12px';
+  meta.textContent=`Código: ${key}`;
+  content.appendChild(meta);
+
+  let html='';
+  for(let i=1;i<=nDisc;i++) html+=`<div style="margin-bottom:6px;font-size:13px"><strong>Q${i}</strong> — Discursiva</div>`;
+  ex.qOrder.forEach((origQ,idx)=>{
+    html+=`<div style="margin-bottom:6px;font-size:13px"><strong>Q${nDisc+idx+1}</strong> — ${altLabels.join(' / ')}</div>`;
+  });
+  content.innerHTML+=html;
+  content.prepend(qrWrap,meta);
+
+  setTimeout(()=>{
+    try{new QRCode(qrBox,{text:key,width:110,height:110,colorDark:'#000',colorLight:'#fff'});}catch(e){}
+  },80);
+
+  document.getElementById('preview-download-btn').onclick=()=>downloadExam(key);
+  openModal('modal-preview');
+}
+
+// ════════════════════════════════════════════════════
+//  SCAN / CORRECTION
+// ════════════════════════════════════════════════════
+function startQRScan() {
+  const container=document.getElementById('qr-reader-container');
+  container.style.display='block';
+  document.getElementById('scan-area').style.display='none';
+  container.innerHTML=`
+    <div style="position:relative;border-radius:10px;overflow:hidden;background:#000">
+      <video id="qr-video" autoplay playsinline style="width:100%;border-radius:10px;display:block"></video>
+      <canvas id="qr-canvas" style="display:none"></canvas>
+      <div style="position:absolute;inset:0;pointer-events:none;border:3px solid var(--accent);border-radius:10px;box-shadow:inset 0 0 0 40px rgba(0,0,0,.3)"></div>
+      <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:160px;height:160px;border:2px solid var(--accent);border-radius:8px;pointer-events:none"></div>
+    </div>
+    <button class="btn btn-ghost btn-full" style="margin-top:8px" onclick="stopQRScan()">✕ Cancelar câmera</button>`;
+
+  navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}})
+    .then(stream=>{
+      const video=document.getElementById('qr-video');
+      video.srcObject=stream;
+      window._qrStream=stream;
+      scanFrameLoop();
+    })
+    .catch(()=>{
+      container.innerHTML='<p style="color:var(--red);font-size:13px;padding:12px;text-align:center">Câmera não disponível.<br>Use o campo manual abaixo.</p>';
+    });
+}
+
+function scanFrameLoop() {
+  const video=document.getElementById('qr-video');
+  const canvas=document.getElementById('qr-canvas');
+  if(!video||!canvas)return;
+  if(video.readyState===video.HAVE_ENOUGH_DATA){
+    canvas.width=video.videoWidth;canvas.height=video.videoHeight;
+    const ctx=canvas.getContext('2d');
+    ctx.drawImage(video,0,0,canvas.width,canvas.height);
+    if(window.jsQR){
+      const code=window.jsQR(ctx.getImageData(0,0,canvas.width,canvas.height).data,canvas.width,canvas.height);
+      if(code&&code.data){stopQRScan();processQRData(code.data);return;}
+    }
+  }
+  if(document.getElementById('qr-video')) window._scanRAF=requestAnimationFrame(scanFrameLoop);
+}
+
+function stopQRScan() {
+  cancelAnimationFrame(window._scanRAF);
+  if(window._qrStream){window._qrStream.getTracks().forEach(t=>t.stop());window._qrStream=null;}
+  document.getElementById('qr-reader-container').style.display='none';
+  document.getElementById('scan-area').style.display='flex';
+}
+
+function processManualQR() {
+  const val=document.getElementById('manual-qr').value.trim();
+  if(!val){toast('Informe o código','var(--red)');return;}
+  processQRData(val);
+}
+
+function processQRData(data) {
+  // Try exact match first
+  let ex=STATE.exams[data];
+  // Try case-insensitive
+  if(!ex){
+    const key=Object.keys(STATE.exams).find(k=>k.toLowerCase()===data.toLowerCase());
+    if(key) ex=STATE.exams[key];
+  }
+  if(!ex){
+    toast('Prova não encontrada: '+data,'var(--red)');
+    return;
+  }
+  const student=STATE.students.find(s=>s.id===ex.studentId);
+  STATE.currentScan={examKey:ex.key,exam:ex,student};
+  document.getElementById('scan-student-name').textContent=student.name;
+  document.getElementById('scan-student-meta').textContent=`${student.id} · ${v('cfg-turma')}`;
+  document.getElementById('scan-versao-badge').textContent=`V${ex.version}`;
+  document.getElementById('scan-step1').style.display='none';
+  document.getElementById('scan-step2').style.display='block';
+  setStep(2);
+}
+
+function resetScan() {
+  STATE.currentScan=null;
+  document.getElementById('scan-step1').style.display='block';
+  document.getElementById('scan-step2').style.display='none';
+  document.getElementById('scan-step3').style.display='none';
+  document.getElementById('scan-result').style.display='none';
+  document.getElementById('manual-qr').value='';
+  setStep(1);
+}
+
+function goToStep3() {
+  document.getElementById('scan-step2').style.display='none';
+  document.getElementById('scan-step3').style.display='block';
+  setStep(3);buildAnswerInputGrid();
+}
+
+function buildAnswerInputGrid() {
+  const ex=STATE.currentScan.exam;
+  const nAlts=parseInt(v('cfg-nalts'));
+  const altLabels=['A','B','C','D','E'].slice(0,nAlts);
+  const nDisc=parseInt(v('cfg-ndisc'))||0;
+  const container=document.getElementById('answer-input-grid');
+  container.innerHTML='';
+  STATE.currentScan.studentAnswers={};
+
+  if(nDisc>0){
+    const d=document.createElement('div');
+    d.style.cssText='background:var(--surface3);border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:var(--text2)';
+    d.innerHTML=`<strong style="color:var(--yellow)">Q1–Q${nDisc}</strong> — Discursivas (avaliação manual pelo professor)`;
+    container.appendChild(d);
+  }
+
+  const grid=document.createElement('div');
+  grid.className='answer-grid-display';
+  container.appendChild(grid);
+
+  ex.qOrder.forEach((origQ,idx)=>{
+    const dn=nDisc+idx+1;
+    const row=document.createElement('div');
+    row.className='answer-row';
+    row.innerHTML=`<span class="q-label">Q${dn}</span><div class="answer-bubbles" id="bubbles-${dn}"></div>`;
+    grid.appendChild(row);
+    const bc=row.querySelector('.answer-bubbles');
+    altLabels.forEach(l=>{
+      const b=document.createElement('div');
+      b.className='bubble';b.textContent=l;
+      b.onclick=()=>{
+        const prev=STATE.currentScan.studentAnswers[origQ];
+        if(prev===l){delete STATE.currentScan.studentAnswers[origQ];b.classList.remove('filled');}
+        else{STATE.currentScan.studentAnswers[origQ]=l;bc.querySelectorAll('.bubble').forEach(bb=>bb.classList.remove('filled'));b.classList.add('filled');}
+      };
+      bc.appendChild(b);
+    });
+  });
+}
+
+async function submitCorrection() {
+  const scan=STATE.currentScan;if(!scan)return;
+  const ex=scan.exam;
+  const nDisc=parseInt(v('cfg-ndisc'))||0;
+  const totalQ=ex.qOrder.length;
+  const pontosPorQ=10/(totalQ+nDisc);
+  let acertos=0,erros=0;
+  const detalhes=[];
+
+  for(let i=1;i<=nDisc;i++) detalhes.push({q:i,tipo:'disc',status:'disc'});
+
+  ex.qOrder.forEach((origQ,idx)=>{
+    const dn=nDisc+idx+1;
+    const correta=STATE.gabarito.find(g=>g.q===origQ)?.answer;
+    const dada=scan.studentAnswers[origQ]||null;
+    const ok=dada&&dada===correta;
+    if(ok) acertos++;else if(dada) erros++;
+    detalhes.push({q:dn,origQ,correta,dada,status:ok?'certo':(dada?'errado':'branco')});
+    document.querySelectorAll(`#bubbles-${dn} .bubble`).forEach(b=>{
+      if(b.textContent.trim()===correta) b.classList.add('correct');
+      else if(b.textContent.trim()===dada&&!ok) b.classList.add('wrong');
+    });
+  });
+
+  const nota=parseFloat((acertos*pontosPorQ).toFixed(1));
+  const resultado={
+    examKey:scan.examKey, studentId:scan.student.id, studentName:scan.student.name,
+    nota, acertos, erros, brancos:totalQ-acertos-erros, detalhes,
+    timestamp:new Date().toISOString()
+  };
+
+  // Save locally
+  STATE.results=STATE.results.filter(r=>r.examKey!==scan.examKey);
+  STATE.results.push(resultado);
+  saveLocal();
+
+  // Push to Sheets (async, non-blocking)
+  pushResultado(resultado);
+
+  const scoreClass=nota>=7?'score-high':nota>=5?'score-mid':'score-low';
+  const bars=detalhes.filter(d=>d.tipo!=='disc').map(d=>
+    `<div class="result-bar" style="background:${d.status==='certo'?'var(--green)':d.status==='errado'?'var(--red)':'var(--surface3)'}"></div>`
+  ).join('');
+
+  document.getElementById('scan-result-content').innerHTML=`
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px">
+      <div class="score-circle ${scoreClass}">${nota}</div>
+      <div>
+        <div style="font-size:16px;font-weight:700">${scan.student.name}</div>
+        <div style="font-size:13px;color:var(--text2)">${acertos}/${totalQ} acertos · Nota ${nota}</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:4px">${STATE.gsUrl?'☁ Enviado ao Google Sheets':'💾 Salvo localmente'}</div>
+      </div>
+    </div>
+    <div class="result-bars">${bars}</div>`;
+
+  document.getElementById('scan-step3').style.display='none';
+  document.getElementById('scan-result').style.display='block';
+  renderGeneratedExams();
+  toast(`✓ Nota ${nota} — ${acertos} acertos`,'var(--green)');
+}
+
+function nextStudent(){resetScan();}
+
+function setStep(n){
+  [1,2,3].forEach(i=>{
+    const d=document.getElementById(`step${i}`);
+    d.className='step-dot '+(i<n?'done':i===n?'active':'pending');
+    d.textContent=i<n?'✓':i;
+  });
+}
+
+// ════════════════════════════════════════════════════
+//  RESULTS
+// ════════════════════════════════════════════════════
+function renderResults() {
+  const list=document.getElementById('results-list');
+  const total=STATE.students.length;
+  const corrigidos=STATE.results.length;
+  const pendentes=Math.max(0,total-corrigidos);
+  const media=corrigidos?(STATE.results.reduce((s,r)=>s+r.nota,0)/corrigidos).toFixed(1):'—';
+  document.getElementById('stat-corrigidos').textContent=corrigidos;
+  document.getElementById('stat-media').textContent=media;
+  document.getElementById('stat-pendentes').textContent=pendentes;
+
+  if(!STATE.results.length){list.innerHTML='<div class="empty"><p>Nenhuma prova corrigida ainda.</p></div>';return;}
+  const sorted=[...STATE.results].sort((a,b)=>b.nota-a.nota);
+  list.innerHTML=sorted.map(r=>{
+    const sc=r.nota>=7?'score-high':r.nota>=5?'score-mid':'score-low';
+    const totalObj=r.detalhes.filter(d=>d.tipo!=='disc').length;
+    const bars=r.detalhes.filter(d=>d.tipo!=='disc').map(d=>
+      `<div class="result-bar" style="background:${d.status==='certo'?'var(--green)':d.status==='errado'?'var(--red)':'var(--surface3)'}"></div>`
+    ).join('');
+    return `
+      <div class="result-card">
+        <div class="result-header">
+          <div>
+            <div class="result-name">${r.studentName}</div>
+            <div style="font-size:11px;color:var(--text2)">${r.acertos}/${totalObj} acertos · ${r.erros} erros · ${r.brancos} em branco</div>
+          </div>
+          <div class="score-circle ${sc}">${r.nota}</div>
+        </div>
+        <div class="result-bars">${bars}</div>
+      </div>`;
+  }).join('');
+}
+
+function clearResults() {
+  if(!confirm('Limpar todos os resultados locais?'))return;
+  STATE.results=[];saveLocal();renderResults();
+  toast('Resultados apagados','var(--red)');
+}
+
+// ════════════════════════════════════════════════════
+//  EXPORT XLSX
+// ════════════════════════════════════════════════════
+function exportXLSX() {
+  if(!STATE.results.length){toast('Nenhum resultado para exportar','var(--red)');return;}
+  const cfg={disciplina:v('cfg-disciplina'),turma:v('cfg-turma'),data:v('cfg-data')};
+  const nDisc=parseInt(v('cfg-ndisc'))||0;
+  const nObj=parseInt(v('cfg-nobj'))||8;
+  const totalQ=nObj+nDisc;
+
+  const summaryData=[
+    ['Relatório de Correção — '+cfg.disciplina],
+    ['Turma: '+cfg.turma, 'Data: '+cfg.data],
+    [],
+    ['Aluno','Código Prova','Nota','Acertos','Erros','Em Branco','Status'],
+    ...STATE.results.sort((a,b)=>b.nota-a.nota).map(r=>[
+      r.studentName, r.examKey, r.nota, r.acertos, r.erros, r.brancos,
+      r.nota>=7?'Aprovado':r.nota>=5?'Recuperação':'Reprovado'
+    ])
+  ];
+
+  const detailHeader=['Aluno','Código',...Array.from({length:totalQ},(_,i)=>`Q${i+1}`),'Nota'];
+  const detailRows=STATE.results.map(r=>{
+    const qs=Array.from({length:totalQ},(_,i)=>{
+      const d=r.detalhes.find(d=>d.q===i+1);
+      if(!d)return'';
+      if(d.tipo==='disc')return'DISC';
+      return d.status==='certo'?`✓${d.dada}`:d.dada?`✗${d.dada}(${d.correta})`:'-';
+    });
+    return [r.studentName,r.examKey,...qs,r.nota];
+  });
+
+  const gabData=[['Gabarito Oficial'],['Questão','Tipo','Resposta'],
+    ...STATE.gabarito.map(g=>[g.q,g.type==='disc'?'Discursiva':'Objetiva',g.answer||'—'])];
+
+  const wb=XLSX.utils.book_new();
+  const ws1=XLSX.utils.aoa_to_sheet(summaryData);
+  const ws2=XLSX.utils.aoa_to_sheet([detailHeader,...detailRows]);
+  const ws3=XLSX.utils.aoa_to_sheet(gabData);
+  ws1['!cols']=[{wch:35},{wch:18},{wch:8},{wch:8},{wch:8},{wch:10},{wch:14}];
+  ws2['!cols']=[{wch:35},{wch:18},...Array(totalQ).fill({wch:10}),{wch:8}];
+  XLSX.utils.book_append_sheet(wb,ws1,'Resumo');
+  XLSX.utils.book_append_sheet(wb,ws2,'Detalhes');
+  XLSX.utils.book_append_sheet(wb,ws3,'Gabarito');
+  XLSX.writeFile(wb,`correcao_${cfg.disciplina}_${cfg.turma}_${cfg.data.replace(/\//g,'-')}.xlsx`);
+  toast('Planilha exportada!','var(--green)');
+}
+
+// ════════════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════════════
+window.addEventListener('load',()=>{
+  loadLocal();
+  buildGabarito();
+  renderStudents();
+  renderGeneratedExams();
+  renderResults();
+  if(STATE.gsUrl) setSyncStatus('ok','✅ Google Sheets configurado','Toque em ⚙ para detalhes');
+  else setSyncStatus('off','Não configurado','Vá em ⚙ para configurar');
+});
+</script>
+</body>
+</html>
