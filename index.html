@@ -289,8 +289,25 @@ select option{background:var(--surface2)}
       </div>
     </div>
     <div id="student-list"><div class="empty"><p>Nenhum aluno adicionado</p></div></div>
+
+    <!-- Preview de importação Excel -->
+    <div id="excel-import-preview" style="display:none;margin-top:12px">
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:4px" id="excel-preview-lbl">0 alunos encontrados</div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:10px">Revise e confirme para adicionar à lista</div>
+        <div id="excel-preview-list" style="max-height:200px;overflow-y:auto;margin-bottom:12px"></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost btn-sm" onclick="cancelExcelImport()">✕ Cancelar</button>
+          <button class="btn btn-primary btn-sm" onclick="confirmExcelImport()">✓ Confirmar importação</button>
+          <button class="btn btn-ghost btn-sm" onclick="downloadTemplateExcel()">⬇ Modelo</button>
+        </div>
+      </div>
+    </div>
+
     <div class="divider"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('excel-alunos-input').click()">📥 Excel</button>
+      <input type="file" id="excel-alunos-input" accept=".xlsx,.xls,.csv" style="display:none" onchange="importAlunosExcelMain(event)">
       <button class="btn btn-ghost btn-sm" onclick="importSampleStudents()">📋 Exemplo</button>
       <button class="btn btn-ghost btn-sm" onclick="pushAlunos()">☁ Salvar no Sheets</button>
       <button class="btn btn-primary" onclick="generateAllExams()">⚡ Gerar provas</button>
@@ -819,6 +836,99 @@ function removeStudent(sid) {
   if(!confirm('Remover aluno?'))return;
   STATE.students=STATE.students.filter(s=>s.id!==sid);
   renderStudents();saveLocal();
+}
+
+// ══════════════════════════════════════════════
+//  IMPORT ALUNOS — Excel / CSV
+// ══════════════════════════════════════════════
+let _excelPreview = [];
+
+function importAlunosExcelMain(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  event.target.value = '';
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+      // Detectar cabeçalho
+      const hdr = (rows[0] || []).map(c => String(c).toLowerCase().trim());
+      const hasHeader = hdr.some(h => ['nome','aluno','name','matricula','matrícula'].includes(h));
+      const startRow = hasHeader ? 1 : 0;
+
+      _excelPreview = [];
+      rows.slice(startRow).forEach(row => {
+        const nome = String(row[0] || '').trim();
+        if (!nome || nome.length < 2) return;
+        const mat  = String(row[1] || '').trim() || 'ALU' + String(_excelPreview.length + 1).padStart(3, '0');
+        const grp  = String(row[2] || '').trim().toLowerCase();
+        const grupo = ['tdah','di'].includes(grp) ? grp : 'regular';
+        _excelPreview.push({ id: mat, name: nome, group: grupo });
+      });
+
+      if (!_excelPreview.length) {
+        toast('Nenhum aluno encontrado. Verifique o formato.', 'var(--red)'); return;
+      }
+
+      // Mostrar preview
+      const gColor = { regular:'#4f8ef7', tdah:'#f5c842', di:'#1fcea0' };
+      const gLabel = { regular:'Regular', tdah:'TDAH', di:'DI' };
+      document.getElementById('excel-preview-lbl').textContent =
+        _excelPreview.length + ' alunos encontrados';
+      document.getElementById('excel-preview-list').innerHTML = _excelPreview.map(a =>
+        `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+          <span style="font-size:13px;font-weight:600;flex:1">${a.name}</span>
+          <span style="font-size:10px;font-weight:700;color:${gColor[a.group]}">${gLabel[a.group]}</span>
+          <span style="font-size:11px;color:var(--text2);font-family:monospace">${a.id}</span>
+        </div>`
+      ).join('');
+      document.getElementById('excel-import-preview').style.display = 'block';
+      toast(_excelPreview.length + ' alunos lidos!', 'var(--green)');
+    } catch(err) {
+      toast('Erro ao ler arquivo: ' + err.message, 'var(--red)');
+    }
+  };
+  reader.onerror = () => toast('Não foi possível ler o arquivo.', 'var(--red)');
+  reader.readAsArrayBuffer(file);
+}
+
+function cancelExcelImport() {
+  _excelPreview = [];
+  document.getElementById('excel-import-preview').style.display = 'none';
+}
+
+function confirmExcelImport() {
+  if (!_excelPreview.length) return;
+  let added = 0, updated = 0;
+  _excelPreview.forEach(a => {
+    const idx = STATE.students.findIndex(s => s.id === a.id);
+    if (idx >= 0) { STATE.students[idx] = a; updated++; }
+    else { STATE.students.push(a); added++; }
+  });
+  saveLocal();
+  cancelExcelImport();
+  renderStudents();
+  toast('✅ ' + added + ' novos + ' + updated + ' atualizados', 'var(--green)');
+}
+
+function downloadTemplateExcel() {
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['Nome', 'Matricula', 'Grupo'],
+    ['Ana Carolina Silva',     '2024001', 'regular'],
+    ['Bruno Henrique Costa',   '2024002', 'tdah'],
+    ['Camila Ferreira Santos', '2024003', 'regular'],
+    ['Diego Souza Oliveira',   '2024004', 'di'],
+    ['Eduarda Lima Pereira',   '2024005', 'regular'],
+  ]);
+  ws['!cols'] = [{wch:35},{wch:12},{wch:10}];
+  XLSX.utils.book_append_sheet(wb, ws, 'Alunos');
+  XLSX.writeFile(wb, 'modelo_alunos_corretoapp.xlsx');
+  toast('Modelo baixado!', 'var(--green)');
 }
 
 function importSampleStudents() {
