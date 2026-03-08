@@ -1,0 +1,1794 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0c12">
+<title>CorretoApp · Corretor</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500;600&family=Sora:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
+<style>
+/* ══════════════════ RESET & BASE ══════════════════ */
+:root {
+  --bg:       #0a0c12;
+  --s1:       #13161f;
+  --s2:       #1c2030;
+  --s3:       #252a3d;
+  --border:   #2b3050;
+  --accent:   #4f8ef7;
+  --a2:       #7c5af0;
+  --green:    #1fcea0;
+  --red:      #f7566a;
+  --yellow:   #f5c842;
+  --text:     #eceef5;
+  --text2:    #7a809a;
+  --radius:   18px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bot: env(safe-area-inset-bottom, 20px);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none; }
+
+html, body {
+  height: 100%; width: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Sora', sans-serif;
+  overscroll-behavior: none;
+}
+
+/* ══════════════════ SCREENS ══════════════════ */
+.screen {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  transition: transform .35s cubic-bezier(.4,0,.2,1), opacity .35s;
+  will-change: transform;
+}
+.screen.hidden   { transform: translateX(100%); opacity: 0; pointer-events: none; }
+.screen.exit-left{ transform: translateX(-30%);  opacity: 0; pointer-events: none; }
+
+/* ══════════════════ TOP BAR ══════════════════ */
+.topbar {
+  padding: calc(var(--safe-top) + 14px) 20px 14px;
+  display: flex; align-items: center; gap: 12px;
+  flex-shrink: 0;
+  background: linear-gradient(to bottom, var(--bg), transparent);
+  position: relative; z-index: 10;
+}
+.back-btn {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: var(--s2); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 18px; flex-shrink: 0;
+  color: var(--text); transition: all .15s;
+}
+.back-btn:active { transform: scale(.92); background: var(--s3); }
+.topbar-title { font-size: 16px; font-weight: 700; flex: 1; }
+.topbar-sub { font-size: 11px; color: var(--text2); margin-top: 1px; }
+.sync-pill {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--s2); border: 1px solid var(--border);
+  border-radius: 20px; padding: 5px 10px;
+  font-size: 11px; font-weight: 600; color: var(--text2);
+}
+.dot { width: 7px; height: 7px; border-radius: 50%; }
+.dot.ok  { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.dot.err { background: var(--red); }
+.dot.off { background: var(--s3); }
+.dot.spin{ background: var(--yellow); animation: blink .7s infinite; }
+@keyframes blink { 0%,100%{opacity:1}50%{opacity:.2} }
+
+/* ══════════════════ SCROLL CONTENT ══════════════════ */
+.content {
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+  padding: 0 16px;
+  padding-bottom: calc(var(--safe-bot) + 100px);
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ══════════════════ BOTTOM ACTION ══════════════════ */
+.bottom-action {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  padding: 12px 16px calc(var(--safe-bot) + 12px);
+  background: linear-gradient(to top, var(--bg) 60%, transparent);
+  z-index: 10; flex-shrink: 0;
+}
+
+/* ══════════════════ BUTTONS ══════════════════ */
+.btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; padding: 16px; border-radius: 14px; border: none;
+  font-family: 'Sora', sans-serif; font-size: 15px; font-weight: 700;
+  cursor: pointer; transition: all .15s; user-select: none; letter-spacing: .2px;
+}
+.btn:active { transform: scale(.97); }
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent), var(--a2));
+  color: #fff; box-shadow: 0 6px 24px rgba(79,142,247,.35);
+}
+.btn-green  { background: var(--green); color: #071a12; box-shadow: 0 6px 20px rgba(31,206,160,.3); }
+.btn-ghost  { background: var(--s2); color: var(--text); border: 1px solid var(--border); }
+.btn-red    { background: var(--red); color: #fff; }
+.btn-sm { padding: 10px 16px; font-size: 13px; border-radius: 10px; width: auto; }
+.btn:disabled { opacity:.4; cursor:not-allowed; transform:none!important; box-shadow:none!important; }
+
+/* ══════════════════ CARDS ══════════════════ */
+.card {
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 18px; margin-bottom: 14px;
+}
+.card-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 1.8px;
+  color: var(--text2); text-transform: uppercase; margin-bottom: 12px;
+}
+
+/* ══════════════════ CONFIG SCREEN ══════════════════ */
+.config-field { margin-bottom: 14px; }
+.config-field label { font-size: 12px; color: var(--text2); font-weight: 600; display: block; margin-bottom: 6px; }
+.config-field input, .config-field select {
+  width: 100%; background: var(--s2); border: 1px solid var(--border);
+  border-radius: 10px; color: var(--text); font-family: 'Sora', sans-serif;
+  font-size: 14px; padding: 12px 14px; outline: none; transition: border .2s;
+  -webkit-appearance: none; appearance: none;
+}
+.config-field input:focus, .config-field select:focus { border-color: var(--accent); }
+select option { background: var(--s2); }
+.config-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* ══════════════════ SCREEN 1: HOME ══════════════════ */
+.home-hero {
+  padding: calc(var(--safe-top) + 40px) 24px 24px;
+  text-align: center;
+}
+.hero-icon {
+  width: 80px; height: 80px; border-radius: 24px; margin: 0 auto 20px;
+  background: linear-gradient(135deg, var(--accent), var(--a2));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 36px; box-shadow: 0 12px 40px rgba(79,142,247,.4);
+}
+.hero-title { font-size: 28px; font-weight: 800; margin-bottom: 6px; letter-spacing: -.5px; }
+.hero-sub { font-size: 14px; color: var(--text2); margin-bottom: 32px; line-height: 1.5; }
+
+.home-stat-row {
+  display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 24px;
+}
+.stat-card {
+  background: var(--s1); border: 1px solid var(--border); border-radius: 14px;
+  padding: 14px 10px; text-align: center;
+}
+.stat-num { font-family: 'DM Mono', monospace; font-size: 26px; font-weight: 600; }
+.stat-lbl { font-size: 10px; color: var(--text2); margin-top: 3px; font-weight: 600; letter-spacing: .5px; }
+.stat-num.green { color: var(--green); }
+.stat-num.yellow { color: var(--yellow); }
+.stat-num.accent { color: var(--accent); }
+
+.start-scan-btn {
+  width: 100%; padding: 22px; border-radius: 18px; border: none;
+  background: linear-gradient(135deg, var(--accent), var(--a2));
+  color: #fff; font-family: 'Sora', sans-serif; font-size: 18px; font-weight: 800;
+  cursor: pointer; transition: all .18s; letter-spacing: -.2px;
+  box-shadow: 0 12px 40px rgba(79,142,247,.45);
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+}
+.start-scan-btn:active { transform: scale(.97); box-shadow: 0 4px 16px rgba(79,142,247,.3); }
+
+.menu-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+.menu-card {
+  background: var(--s1); border: 1px solid var(--border); border-radius: 14px;
+  padding: 16px; cursor: pointer; transition: all .15s; display: flex; flex-direction: column; gap: 6px;
+}
+.menu-card:active { background: var(--s2); transform: scale(.97); }
+.menu-card .mc-icon { font-size: 22px; }
+.menu-card .mc-title { font-size: 13px; font-weight: 700; }
+.menu-card .mc-sub { font-size: 11px; color: var(--text2); }
+
+/* ══════════════════ SCREEN 2: CAMERA ══════════════════ */
+.camera-wrap {
+  position: relative; background: #000; overflow: hidden;
+  flex: 1;
+}
+#qr-video {
+  width: 100%; height: 100%;
+  object-fit: cover; display: block;
+}
+.camera-overlay {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.scan-frame {
+  width: 220px; height: 220px; position: relative;
+}
+.scan-frame::before, .scan-frame::after,
+.sf-br::before, .sf-br::after {
+  content: ''; position: absolute;
+  width: 32px; height: 32px;
+  border-color: white; border-style: solid;
+}
+.scan-frame::before { top:0; left:0; border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
+.scan-frame::after  { top:0; right:0; border-width: 3px 3px 0 0; border-radius: 0 4px 0 0; }
+.sf-br::before      { bottom:0; left:0; border-width: 0 0 3px 3px; border-radius: 0 0 0 4px; }
+.sf-br::after       { bottom:0; right:0; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
+
+.scan-line {
+  position: absolute; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  animation: scanline 2s ease-in-out infinite;
+  top: 0;
+}
+@keyframes scanline {
+  0%   { top: 0%; opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+.camera-shade {
+  position: absolute; inset: 0;
+  background: radial-gradient(220px 220px at center, transparent 110px, rgba(0,0,0,.65) 111px);
+}
+.camera-hint {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  padding: 20px; text-align: center;
+  background: linear-gradient(to top, rgba(0,0,0,.9), transparent);
+}
+.camera-hint p { font-size: 14px; color: rgba(255,255,255,.8); margin-bottom: 14px; }
+
+.camera-topbar {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 20;
+  padding: calc(var(--safe-top) + 14px) 16px 14px;
+  display: flex; align-items: center; gap: 12px;
+  background: linear-gradient(to bottom, rgba(0,0,0,.7), transparent);
+}
+.camera-topbar .back-btn { background: rgba(255,255,255,.15); border-color: rgba(255,255,255,.2); }
+.camera-topbar .topbar-title { color: #fff; }
+
+/* ══════════════════ SCREEN 3: CONFIRM ══════════════════ */
+.student-confirm-card {
+  background: linear-gradient(135deg, var(--s1), var(--s2));
+  border: 1px solid var(--border); border-radius: 20px; padding: 24px;
+  margin-bottom: 16px; text-align: center;
+}
+.student-avatar {
+  width: 68px; height: 68px; border-radius: 50%; margin: 0 auto 14px;
+  background: linear-gradient(135deg, var(--accent), var(--a2));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26px; font-weight: 800; color: #fff;
+}
+.student-full-name { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+.student-details { font-size: 13px; color: var(--text2); line-height: 1.8; }
+.version-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(79,142,247,.15); border: 1px solid rgba(79,142,247,.3);
+  color: var(--accent); border-radius: 20px; padding: 5px 12px;
+  font-size: 12px; font-weight: 700; margin-top: 10px;
+}
+.exam-code-box {
+  background: var(--s2); border: 1px solid var(--border); border-radius: 10px;
+  padding: 10px 14px; margin-top: 12px; text-align: center;
+}
+.exam-code-box .code-lbl { font-size: 10px; color: var(--text2); letter-spacing: 1px; text-transform: uppercase; }
+.exam-code-box .code-val { font-family: 'DM Mono', monospace; font-size: 16px; font-weight: 600; margin-top: 2px; }
+
+/* ══════════════════ SCREEN 4: ANSWERS ══════════════════ */
+.q-progress {
+  display: flex; gap: 3px; margin-bottom: 16px; flex-wrap: wrap;
+}
+.q-pip {
+  height: 4px; border-radius: 2px; flex: 1; min-width: 8px;
+  background: var(--s3); transition: background .2s;
+}
+.q-pip.answered { background: var(--accent); }
+.q-pip.correct  { background: var(--green); }
+.q-pip.wrong    { background: var(--red); }
+
+.disc-notice {
+  background: rgba(245,200,66,.08); border: 1px solid rgba(245,200,66,.2);
+  border-radius: 12px; padding: 12px 14px; margin-bottom: 12px;
+  font-size: 13px; color: var(--yellow); line-height: 1.5;
+}
+
+.q-block {
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: 16px; padding: 16px; margin-bottom: 10px;
+  transition: border-color .2s;
+}
+.q-block.answered { border-color: rgba(79,142,247,.4); }
+
+.q-header-row {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;
+}
+.q-num-badge {
+  font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 600;
+  background: var(--s2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 3px 8px; color: var(--text2);
+}
+.q-status-icon { font-size: 16px; }
+
+/* BIG BUBBLES */
+.bubbles-row {
+  display: flex; gap: 10px; justify-content: center;
+}
+.bubble-btn {
+  width: 56px; height: 56px; border-radius: 50%;
+  border: 2px solid var(--border); background: var(--s2);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'DM Mono', monospace; font-size: 17px; font-weight: 700;
+  color: var(--text2); cursor: pointer;
+  transition: all .15s; flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.bubble-btn:active { transform: scale(.88); }
+.bubble-btn.filled {
+  background: var(--accent); border-color: var(--accent); color: #fff;
+  box-shadow: 0 4px 16px rgba(79,142,247,.5);
+}
+.bubble-btn.correct {
+  background: var(--green); border-color: var(--green); color: #051a0f;
+  box-shadow: 0 4px 16px rgba(31,206,160,.5);
+}
+.bubble-btn.wrong {
+  background: var(--red); border-color: var(--red); color: #fff;
+  box-shadow: 0 4px 16px rgba(247,86,106,.4);
+}
+/* 5 alternativas: menores */
+.bubbles-row.five .bubble-btn { width: 48px; height: 48px; font-size: 15px; }
+
+/* ══════════════════ SCREEN 5: RESULT ══════════════════ */
+.result-hero {
+  padding: 32px 24px 16px; text-align: center;
+}
+.score-ring {
+  width: 120px; height: 120px; border-radius: 50%; margin: 0 auto 20px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  border: 4px solid; position: relative;
+}
+.score-ring::before {
+  content: ''; position: absolute; inset: -8px; border-radius: 50%;
+  border: 2px solid; opacity: .2;
+}
+.score-ring.high { border-color: var(--green); color: var(--green); }
+.score-ring.high::before { border-color: var(--green); }
+.score-ring.mid  { border-color: var(--yellow); color: var(--yellow); }
+.score-ring.mid::before  { border-color: var(--yellow); }
+.score-ring.low  { border-color: var(--red); color: var(--red); }
+.score-ring.low::before  { border-color: var(--red); }
+.score-num { font-family: 'DM Mono', monospace; font-size: 36px; font-weight: 600; line-height: 1; }
+.score-lbl { font-size: 11px; opacity: .7; margin-top: 2px; }
+
+.result-name { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+.result-sub  { font-size: 13px; color: var(--text2); margin-bottom: 20px; }
+
+.stats-row {
+  display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 20px;
+}
+.mini-stat {
+  background: var(--s1); border: 1px solid var(--border); border-radius: 12px; padding: 12px 8px; text-align: center;
+}
+.mini-stat .ms-num { font-family: 'DM Mono', monospace; font-size: 22px; font-weight: 600; }
+.mini-stat .ms-lbl { font-size: 10px; color: var(--text2); margin-top: 2px; font-weight: 600; }
+.ms-num.g { color: var(--green); }
+.ms-num.r { color: var(--red); }
+.ms-num.y { color: var(--text2); }
+
+.answer-detail-grid {
+  display: grid; grid-template-columns: repeat(2,1fr); gap: 6px; margin-bottom: 16px;
+}
+.detail-row {
+  background: var(--s1); border: 1px solid var(--border); border-radius: 10px;
+  padding: 10px 12px; display: flex; align-items: center; gap: 8px;
+}
+.detail-q { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text2); min-width: 24px; }
+.detail-ans { font-family: 'DM Mono', monospace; font-size: 15px; font-weight: 700; }
+.detail-ans.ok  { color: var(--green); }
+.detail-ans.err { color: var(--red); }
+.detail-ans.blank { color: var(--text2); }
+.detail-icon { margin-left: auto; font-size: 14px; }
+
+.btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+
+/* ══════════════════ SCREEN 6: RESULTS LIST ══════════════════ */
+.result-item {
+  background: var(--s1); border: 1px solid var(--border); border-radius: 14px;
+  padding: 14px; margin-bottom: 10px; display: flex; align-items: center; gap: 12px;
+}
+.ri-score {
+  width: 48px; height: 48px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'DM Mono', monospace; font-size: 15px; font-weight: 700; border: 2px solid;
+}
+.ri-score.high { border-color: var(--green); color: var(--green); background: rgba(31,206,160,.1); }
+.ri-score.mid  { border-color: var(--yellow); color: var(--yellow); background: rgba(245,200,66,.1); }
+.ri-score.low  { border-color: var(--red); color: var(--red); background: rgba(247,86,106,.1); }
+.ri-name { font-size: 14px; font-weight: 700; }
+.ri-sub  { font-size: 11px; color: var(--text2); margin-top: 2px; }
+.mini-bars { display: flex; gap: 2px; margin-top: 6px; }
+.mini-bar  { height: 3px; flex: 1; border-radius: 2px; }
+
+/* ══════════════════ CONFIG SCREEN ══════════════════ */
+.cfg-header {
+  padding: calc(var(--safe-top) + 20px) 20px 16px;
+  flex-shrink: 0;
+}
+.cfg-title { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+.cfg-sub   { font-size: 13px; color: var(--text2); }
+
+/* ══════════════════ TOAST ══════════════════ */
+#toast {
+  position: fixed; bottom: calc(var(--safe-bot) + 90px); left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--s2); border: 1px solid var(--border);
+  border-radius: 12px; padding: 11px 18px;
+  font-size: 13px; font-weight: 600; z-index: 999;
+  opacity: 0; transition: all .28s; white-space: nowrap;
+  box-shadow: 0 8px 32px rgba(0,0,0,.5);
+  pointer-events: none;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ══════════════════ MANUAL INPUT ══════════════════ */
+.manual-box {
+  background: var(--s1); border: 1px solid var(--border); border-radius: 14px;
+  padding: 16px; margin: 0 16px 16px;
+}
+.manual-box label { font-size: 12px; color: var(--text2); font-weight: 600; display: block; margin-bottom: 8px; }
+.manual-row { display: flex; gap: 8px; }
+.manual-row input {
+  flex: 1; background: var(--s2); border: 1px solid var(--border);
+  border-radius: 10px; color: var(--text); font-family: 'DM Mono', monospace;
+  font-size: 14px; padding: 12px 14px; outline: none; transition: border .2s;
+  text-transform: uppercase; letter-spacing: 1px;
+}
+.manual-row input:focus { border-color: var(--accent); }
+
+/* ══════════════════ EMPTY STATE ══════════════════ */
+.empty { text-align: center; padding: 48px 24px; color: var(--text2); }
+.empty .ei { font-size: 48px; margin-bottom: 12px; opacity: .4; }
+.empty p { font-size: 14px; line-height: 1.6; }
+
+/* ══════════════════ DIVIDER ══════════════════ */
+.divider { height: 1px; background: var(--border); margin: 14px 0; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════
+     SCREEN 0: HOME
+═══════════════════════════════════════════════ -->
+<div class="screen" id="s-home">
+  <div style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:calc(var(--safe-bot)+24px)">
+    <div class="home-hero">
+      <div class="hero-icon">✦</div>
+      <div class="hero-title">CorretoApp</div>
+      <div class="hero-sub">Correção de provas rápida<br>e sincronizada com Google Sheets</div>
+
+      <div class="home-stat-row">
+        <div class="stat-card">
+          <div class="stat-num accent" id="h-total">0</div>
+          <div class="stat-lbl">Alunos</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num green" id="h-done">0</div>
+          <div class="stat-lbl">Corrigidas</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num yellow" id="h-pend">0</div>
+          <div class="stat-lbl">Pendentes</div>
+        </div>
+      </div>
+
+      <button class="start-scan-btn" onclick="goScan()">
+        <span style="font-size:22px">⬛</span> Escanear Prova
+      </button>
+
+      <div class="menu-row">
+        <div class="menu-card" onclick="goScreen('s-results')">
+          <div class="mc-icon">📊</div>
+          <div class="mc-title">Resultados</div>
+          <div class="mc-sub">Ver todas as notas</div>
+        </div>
+        <div class="menu-card" onclick="goScreen('s-alunos')">
+          <div class="mc-icon">👥</div>
+          <div class="mc-title">Alunos</div>
+          <div class="mc-sub" id="home-alunos-sub">0 cadastrados</div>
+        </div>
+        <div class="menu-card" onclick="goScreen('s-config')">
+          <div class="mc-icon">⚙️</div>
+          <div class="mc-title">Configurar</div>
+          <div class="mc-sub">Sheets & dados</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status bar -->
+    <div style="padding:0 16px">
+      <div class="card">
+        <div class="card-label">Conexão Google Sheets</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="dot off" id="home-dot"></div>
+          <div>
+            <div style="font-size:13px;font-weight:600" id="home-gs-txt">Não configurado</div>
+            <div style="font-size:11px;color:var(--text2)" id="home-gs-sub">Configure em ⚙️ Configurar</div>
+          </div>
+          <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="pullData()">↺ Sync</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     SCREEN: ALUNOS
+═══════════════════════════════════════════════ -->
+<div class="screen hidden" id="s-alunos">
+  <div class="topbar">
+    <div class="back-btn" onclick="goScreen('s-home')">←</div>
+    <div style="flex:1">
+      <div class="topbar-title">Alunos</div>
+      <div class="topbar-sub" id="alunos-sub">0 cadastrados</div>
+    </div>
+    <button class="btn btn-ghost btn-sm" style="width:auto" onclick="document.getElementById('quick-import-xl').click()">📥 Excel</button>
+    <input type="file" id="quick-import-xl" accept=".xlsx,.xls,.csv" style="display:none" onchange="importAlunosExcel(event)">
+  </div>
+
+  <!-- Preview de importação — aparece sobre o conteúdo quando tem dados -->
+  <div id="alunos-import-preview" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+    <div style="padding:14px 16px;background:var(--s1);border-bottom:1px solid var(--border)">
+      <div style="font-size:14px;font-weight:700;margin-bottom:4px" id="alunos-preview-lbl">0 alunos encontrados</div>
+      <div style="font-size:12px;color:var(--text2)">Revise a lista e confirme para importar</div>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:12px 16px;-webkit-overflow-scrolling:touch" id="alunos-preview-list"></div>
+    <div style="padding:12px 16px;display:grid;grid-template-columns:1fr 1fr;gap:10px;
+                background:var(--bg);border-top:1px solid var(--border);
+                padding-bottom:calc(var(--safe-bot) + 12px)">
+      <button class="btn btn-ghost" onclick="cancelImportAlunos()">✕ Cancelar</button>
+      <button class="btn btn-green" onclick="confirmImport()">✓ Importar</button>
+    </div>
+  </div>
+
+  <div class="content" id="alunos-content" style="display:block">
+    <div class="empty"><div class="ei">👥</div>
+      <p>Nenhum aluno cadastrado.<br>Importe via Excel ou sincronize com o Sheets.</p>
+    </div>
+  </div>
+
+  <div class="bottom-action" id="alunos-bottom">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <button class="btn btn-ghost" onclick="pullAlunosSheet()">☁ Carregar Sheets</button>
+      <button class="btn btn-primary" onclick="document.getElementById('quick-import-xl').click()">📥 Importar Excel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     SCREEN 1: CÂMERA QR
+═══════════════════════════════════════════════ -->
+<div class="screen hidden" id="s-camera">
+  <div class="camera-wrap">
+    <video id="qr-video" playsinline muted style="width:100%;height:100%;object-fit:cover;display:block"></video>
+    <!-- status overlay shown before camera starts or on error -->
+    <div id="cam-status" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#000">
+      <div style="text-align:center;color:rgba(255,255,255,.6);font-size:14px;padding:24px">
+        <div style="font-size:48px;margin-bottom:12px">📷</div>
+        Iniciando câmera…
+      </div>
+    </div>
+    <div class="camera-shade"></div>
+    <div class="camera-overlay">
+      <div class="scan-frame">
+        <div class="sf-br"></div>
+        <div class="scan-line"></div>
+      </div>
+    </div>
+    <div class="camera-topbar">
+      <div class="back-btn" onclick="killCamera();goScreen('s-home')">←</div>
+      <div>
+        <div class="topbar-title" style="color:#fff">Escanear QR Code</div>
+        <div class="topbar-sub" style="color:rgba(255,255,255,.6)">Aponte para o código da prova</div>
+      </div>
+    </div>
+    <div class="camera-hint">
+      <p>Centralize o QR Code no quadro acima</p>
+      <button class="btn btn-ghost btn-sm" onclick="killCamera();goScreen('s-home')" style="width:auto;margin:0 auto">Cancelar</button>
+    </div>
+  </div>
+  <!-- Manual entry -->
+  <div class="manual-box">
+    <label>Ou digite o código manualmente:</label>
+    <div class="manual-row">
+      <input type="text" id="manual-code" placeholder="EX: ALU001-V1" autocomplete="off" autocorrect="off">
+      <button class="btn btn-primary btn-sm" onclick="processManual()">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     SCREEN 2: CONFIRMAR ALUNO
+═══════════════════════════════════════════════ -->
+<div class="screen hidden" id="s-confirm">
+  <div class="topbar">
+    <div class="back-btn" onclick="goScan()">←</div>
+    <div>
+      <div class="topbar-title">Confirmar Aluno</div>
+      <div class="topbar-sub">Verifique antes de continuar</div>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="student-confirm-card">
+      <div class="student-avatar" id="conf-avatar">?</div>
+      <div class="student-full-name" id="conf-name">—</div>
+      <div class="student-details" id="conf-details">—</div>
+      <div class="version-badge">
+        <span>🔖</span> <span id="conf-version">Versão 1</span>
+      </div>
+      <div class="exam-code-box">
+        <div class="code-lbl">Código da Prova</div>
+        <div class="code-val" id="conf-code">—</div>
+      </div>
+    </div>
+
+    <div style="color:var(--text2);font-size:13px;text-align:center;line-height:1.6;padding:0 8px">
+      Esta é a prova correta do aluno?<br>Confirme para marcar as respostas.
+    </div>
+  </div>
+
+  <div class="bottom-action">
+    <div style="display:grid;grid-template-columns:1fr 2fr;gap:10px">
+      <button class="btn btn-ghost" onclick="goScan()">✕ Não</button>
+      <button class="btn btn-primary" onclick="goAnswers()">Sim, continuar →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     SCREEN 3: MARCAR RESPOSTAS
+═══════════════════════════════════════════════ -->
+<div class="screen hidden" id="s-answers">
+  <div class="topbar">
+    <div class="back-btn" onclick="goScreen('s-confirm')">←</div>
+    <div style="flex:1">
+      <div class="topbar-title" id="ans-title">Marcar Respostas</div>
+      <div class="topbar-sub" id="ans-sub">0 de 0 respondidas</div>
+    </div>
+    <div class="sync-pill">
+      <div class="dot off" id="ans-dot"></div>
+      <span id="ans-sync-txt">local</span>
+    </div>
+  </div>
+
+  <div class="content" id="answers-content">
+    <!-- Built dynamically -->
+  </div>
+
+  <div class="bottom-action">
+    <button class="btn btn-green" id="submit-btn" onclick="submitCorrection()">
+      ✓ Corrigir e salvar
+    </button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     SCREEN 4: RESULTADO
+═══════════════════════════════════════════════ -->
+<div class="screen hidden" id="s-result">
+  <div style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:calc(var(--safe-bot)+100px)">
+    <div class="result-hero">
+      <div class="score-ring" id="res-ring">
+        <div class="score-num" id="res-score">—</div>
+        <div class="score-lbl">NOTA</div>
+      </div>
+      <div class="result-name" id="res-name">—</div>
+      <div class="result-sub" id="res-sub">—</div>
+
+      <div class="stats-row">
+        <div class="mini-stat">
+          <div class="ms-num g" id="res-acertos">0</div>
+          <div class="ms-lbl">✓ Acertos</div>
+        </div>
+        <div class="mini-stat">
+          <div class="ms-num r" id="res-erros">0</div>
+          <div class="ms-lbl">✗ Erros</div>
+        </div>
+        <div class="mini-stat">
+          <div class="ms-num y" id="res-brancos">0</div>
+          <div class="ms-lbl">— Branco</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="padding:0 16px">
+      <div class="card">
+        <div class="card-label">Detalhe por questão</div>
+        <div class="answer-detail-grid" id="res-detail"></div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="goScreen('s-results')">Ver todos</button>
+        <button class="btn btn-primary" onclick="nextStudent()">→ Próximo</button>
+      </div>
+      <button class="btn btn-ghost" onclick="goScreen('s-home')" style="margin-top:0">
+        🏠 Início
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     SCREEN 5: LISTA RESULTADOS
+═══════════════════════════════════════════════ -->
+<div class="screen hidden" id="s-results">
+  <div class="topbar">
+    <div class="back-btn" onclick="goScreen('s-home')">←</div>
+    <div style="flex:1">
+      <div class="topbar-title">Resultados</div>
+      <div class="topbar-sub" id="res-list-sub">—</div>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="exportXLSX()" style="width:auto">📊</button>
+  </div>
+
+  <div class="content" id="results-list-content">
+    <div class="empty"><div class="ei">📋</div><p>Nenhuma prova corrigida ainda.</p></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     SCREEN 6: CONFIGURAÇÕES
+═══════════════════════════════════════════════ -->
+<div class="screen hidden" id="s-config">
+  <div class="cfg-header">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+      <div class="back-btn" onclick="goScreen('s-home')">←</div>
+      <div>
+        <div class="cfg-title">Configurações</div>
+        <div class="cfg-sub">App de correção mobile</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="content">
+    <!-- Google Sheets -->
+    <div class="card">
+      <div class="card-label">🔗 Google Sheets</div>
+      <div class="config-field">
+        <label>URL do Apps Script</label>
+        <input type="text" id="cfg-gs-url" placeholder="https://script.google.com/macros/s/.../exec"
+          style="font-size:12px;font-family:'DM Mono',monospace">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <button class="btn btn-ghost btn-sm" onclick="salvarUrl()">💾 Salvar</button>
+        <button class="btn btn-ghost btn-sm" onclick="testarConexao()">🔌 Testar</button>
+      </div>
+      <div class="divider"></div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="dot off" id="cfg-dot"></div>
+        <span style="font-size:12px;color:var(--text2)" id="cfg-gs-status">Não configurado</span>
+      </div>
+    </div>
+
+    <!-- Prova config -->
+    <div class="card">
+      <div class="card-label">📝 Configuração da Prova</div>
+      <div class="config-row">
+        <div class="config-field">
+          <label>Questões objetivas</label>
+          <input type="number" id="cfg-nobj" value="8" min="1" max="20">
+        </div>
+        <div class="config-field">
+          <label>Discursivas</label>
+          <input type="number" id="cfg-ndisc" value="2" min="0" max="10">
+        </div>
+      </div>
+      <div class="config-field">
+        <label>Alternativas por questão</label>
+        <select id="cfg-nalts">
+          <option value="3">3 alternativas (A B C)</option>
+          <option value="4" selected>4 alternativas (A B C D)</option>
+          <option value="5">5 alternativas (A B C D E)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Gabarito -->
+    <div class="card">
+      <div class="card-label">✅ Gabarito Oficial</div>
+      <p style="font-size:12px;color:var(--text2);margin-bottom:12px">
+        Configure no app principal (CorretoApp.html) e sincronize aqui, ou defina manualmente.
+      </p>
+      <button class="btn btn-ghost btn-sm" onclick="pullGabarito()" style="margin-bottom:10px">☁ Carregar gabarito do Sheets</button>
+      <div id="gabarito-mini"></div>
+    </div>
+
+    <!-- Sincronização -->
+    <div class="card">
+      <div class="card-label">☁ Sincronização</div>
+      <div style="display:grid;gap:8px">
+        <button class="btn btn-ghost btn-sm" onclick="pullData()">↺ Carregar tudo do Sheets</button>
+        <button class="btn btn-ghost btn-sm" onclick="pushResults()">⬆ Enviar resultados ao Sheets</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportXLSX()">📊 Exportar planilha .xlsx</button>
+      </div>
+    </div>
+
+    <!-- Import alunos Excel -->
+    <div class="card">
+      <div class="card-label">📥 Importar Alunos</div>
+      <p style="font-size:12px;color:var(--text2);margin-bottom:12px;line-height:1.6">
+        Envie um arquivo <strong style="color:var(--text)">.xlsx ou .csv</strong> com colunas:<br>
+        <code style="background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px">Nome | Matricula | Grupo</code>
+      </p>
+      <button class="btn btn-primary btn-sm" onclick="document.getElementById('import-alunos-xl').click()" style="margin-bottom:8px">
+        📂 Selecionar arquivo
+      </button>
+      <input type="file" id="import-alunos-xl" accept=".xlsx,.xls,.csv" style="display:none" onchange="importAlunosExcel(event)">
+      <div id="import-preview" style="display:none">
+        <div class="divider"></div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:8px" id="import-preview-lbl">0 alunos encontrados</div>
+        <div id="import-preview-list" style="max-height:160px;overflow-y:auto"></div>
+        <div class="divider"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <button class="btn btn-ghost btn-sm" onclick="cancelImport()">✕ Cancelar</button>
+          <button class="btn btn-green btn-sm" id="confirm-import-btn" onclick="confirmImport()">✓ Importar</button>
+        </div>
+      </div>
+      <div style="margin-top:8px">
+        <button class="btn btn-ghost btn-sm" onclick="downloadTemplateExcel()">⬇ Baixar modelo .xlsx</button>
+      </div>
+    </div>
+
+    <!-- Dados locais -->
+    <div class="card">
+      <div class="card-label">💾 Dados locais</div>
+      <div style="display:grid;gap:8px">
+        <button class="btn btn-ghost btn-sm" onclick="exportBackup()">⬇ Backup JSON</button>
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('import-file').click()">⬆ Restaurar JSON</button>
+        <input type="file" id="import-file" accept=".json" style="display:none" onchange="importBackup(event)">
+        <div class="divider"></div>
+        <button class="btn btn-red btn-sm" onclick="limparResultados()">🗑 Limpar resultados locais</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- XLSX lib -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+<script>
+// ══════════════════════════════════════════════════════
+//  ESTADO
+// ══════════════════════════════════════════════════════
+const S = {
+  gsUrl:    '',
+  gabarito: [],   // [{q, answer, type}]
+  exams:    {},   // {key: {key, studentId, studentName, version, qOrder}}
+  students: [],
+  results:  [],
+  currentExam: null,
+  studentAnswers: {},
+  nObj:  8,
+  nDisc: 2,
+  nAlts: 4,
+};
+
+const LS = 'corretoapp_mobile_v1';
+
+// ══════════════════════════════════════════════════════
+//  PERSIST
+// ══════════════════════════════════════════════════════
+function save() {
+  try { localStorage.setItem(LS, JSON.stringify(S)); } catch(e) {}
+}
+function load() {
+  try {
+    const d = JSON.parse(localStorage.getItem(LS) || '{}');
+    Object.assign(S, d);
+    if (S.gsUrl) document.getElementById('cfg-gs-url').value = S.gsUrl;
+    setv('cfg-nobj',  S.nObj);
+    setv('cfg-ndisc', S.nDisc);
+    setv('cfg-nalts', S.nAlts);
+    updateDot(S.gsUrl ? 'ok' : 'off');
+    renderGabaritoMini();
+  } catch(e) {}
+}
+function v(id)      { const e=document.getElementById(id); return e?e.value:''; }
+function setv(id,v) { const e=document.getElementById(id); if(e&&v!=null)e.value=v; }
+
+// ══════════════════════════════════════════════════════
+//  NAVIGATION
+// ══════════════════════════════════════════════════════
+let _prev = null;
+function goScreen(id, back=false) {
+  const cur = document.querySelector('.screen:not(.hidden):not(.exit-left)');
+  if (cur && cur.id !== id) {
+    cur.classList.add(back ? 'hidden' : 'exit-left');
+    setTimeout(() => cur.classList.remove('exit-left'), 400);
+  }
+  const next = document.getElementById(id);
+  if (!next) return;
+  next.classList.remove('hidden', 'exit-left');
+  if (id === 's-home') updateHome();
+  if (id === 's-results') renderResultsList();
+  if (id === 's-config') renderGabaritoMini();
+  if (id === 's-alunos') renderAlunos();
+  _prev = cur ? cur.id : null;
+}
+
+function goScan() {
+  const cs = document.getElementById('cam-status');
+  if (cs) { cs.style.display='flex'; cs.innerHTML='<div style="text-align:center;color:rgba(255,255,255,.6);font-size:14px;padding:24px"><div style="font-size:48px;margin-bottom:12px">📷</div>Iniciando câmera…</div>'; }
+  goScreen('s-camera');
+  startCamera();
+}
+
+// ══════════════════════════════════════════════════════
+//  CAMERA / QR SCAN  — robusto, throttled, HTTPS-aware
+// ══════════════════════════════════════════════════════
+let _stream = null, _scanTimer = null, _scanning = false;
+
+function startCamera() {
+  const video = document.getElementById('qr-video');
+  const camWrap = document.getElementById('cam-status');
+
+  // Check HTTPS
+  if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+    if (camWrap) camWrap.innerHTML =
+      '<div style="color:var(--yellow);font-size:13px;text-align:center;padding:20px;line-height:1.7">' +
+      '⚠️ <strong>Câmera requer HTTPS</strong><br>' +
+      'Publique em Netlify ou acesse por localhost.<br>' +
+      'Use o campo manual abaixo.</div>';
+    toast('Publique em HTTPS para usar a câmera', 'var(--yellow)');
+    return;
+  }
+
+  if (!navigator.mediaDevices?.getUserMedia) {
+    if (camWrap) camWrap.innerHTML =
+      '<div style="color:var(--red);font-size:13px;text-align:center;padding:20px">Câmera não suportada neste browser.</div>';
+    return;
+  }
+
+  _scanning = true;
+  if (_stream) { video.srcObject = _stream; video.play(); startScanLoop(); return; }
+
+  navigator.mediaDevices.getUserMedia({
+    video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }
+  }).then(stream => {
+    _stream = stream;
+    video.srcObject = stream;
+    video.setAttribute('playsinline', '');
+    video.muted = true;
+    video.play().then(() => {
+      if (camWrap) camWrap.style.display = 'none';
+      startScanLoop();
+    }).catch(e => { toast('Erro ao iniciar vídeo: ' + e.message, 'var(--red)'); });
+  }).catch(err => {
+    const msg = err.name === 'NotAllowedError'
+      ? 'Permissão de câmera negada. Verifique as configurações do browser.'
+      : err.name === 'NotFoundError'
+      ? 'Nenhuma câmera encontrada neste dispositivo.'
+      : 'Câmera indisponível: ' + err.message;
+    if (camWrap) camWrap.innerHTML =
+      `<div style="color:var(--red);font-size:13px;text-align:center;padding:20px;line-height:1.7">📷 ${msg}</div>`;
+    toast(msg, 'var(--red)');
+  });
+}
+
+function startScanLoop() {
+  if (!_scanning) return;
+  clearTimeout(_scanTimer);
+  _scanTimer = setTimeout(doScan, 150); // scan 6-7x por segundo, não sobrecarrega CPU
+}
+
+function doScan() {
+  if (!_scanning) return;
+  const video = document.getElementById('qr-video');
+  if (!video || video.readyState < video.HAVE_ENOUGH_DATA || video.paused) {
+    startScanLoop(); return;
+  }
+  const W = video.videoWidth, H = video.videoHeight;
+  if (!W || !H) { startScanLoop(); return; }
+
+  // Scan apenas a região central (mais rápido e preciso)
+  const size = Math.min(W, H) * 0.7;
+  const ox = (W - size) / 2, oy = (H - size) / 2;
+  const cvs = document.createElement('canvas');
+  cvs.width = cvs.height = Math.min(size, 512); // cap at 512px para perf
+  const ctx = cvs.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(video, ox, oy, size, size, 0, 0, cvs.width, cvs.height);
+
+  try {
+    const imgData = ctx.getImageData(0, 0, cvs.width, cvs.height);
+    const code = window.jsQR && jsQR(imgData.data, imgData.width, imgData.height, {
+      inversionAttempts: 'attemptBoth'
+    });
+    if (code?.data) {
+      stopCamera();
+      processQR(code.data);
+      return;
+    }
+  } catch(e) {}
+  startScanLoop();
+}
+
+function stopCamera() {
+  _scanning = false;
+  clearTimeout(_scanTimer);
+  // Don't kill stream — just stop scanning. Restart is instant.
+}
+
+function killCamera() {
+  stopCamera();
+  if (_stream) { _stream.getTracks().forEach(t => t.stop()); _stream = null; }
+}
+
+function processManual() {
+  const val = document.getElementById('manual-code').value.trim().toUpperCase();
+  if (!val) { toast('Digite o código', 'var(--red)'); return; }
+  stopCamera();
+  processQR(val);
+}
+
+function processQR(rawCode) {
+  const code = rawCode.trim().replace(/[\r\n\t]/g, '').toUpperCase();
+
+  let ex = S.exams[code];
+  if (!ex) {
+    const key = Object.keys(S.exams).find(k => k.toUpperCase() === code);
+    if (key) ex = S.exams[key];
+  }
+  if (!ex) {
+    const key = Object.keys(S.exams).find(k => code.includes(k.toUpperCase()) || k.toUpperCase().includes(code));
+    if (key) ex = S.exams[key];
+  }
+  if (!ex) {
+    toast('Prova não encontrada: ' + code, 'var(--red)');
+    goScan(); return;
+  }
+  const student = S.students.find(s => s.id === ex.studentId) ||
+                  { name: ex.studentName, id: ex.studentId, group: 'regular' };
+  S.currentExam = { ex, student };
+
+  // Fill confirm screen
+  const initials = student.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  document.getElementById('conf-avatar').textContent = initials;
+  document.getElementById('conf-name').textContent = student.name;
+  document.getElementById('conf-details').textContent =
+    `Matrícula: ${student.id}\nTurma: ${S.students.find(s=>s.id===student.id)?.group||'Regular'}`;
+  document.getElementById('conf-version').textContent = `Versão ${ex.version}`;
+  document.getElementById('conf-code').textContent = code;
+
+  goScreen('s-confirm');
+}
+
+// ══════════════════════════════════════════════════════
+//  ANSWER SCREEN
+// ══════════════════════════════════════════════════════
+function goAnswers() {
+  S.studentAnswers = {};
+  buildAnswerScreen();
+  goScreen('s-answers');
+}
+
+function buildAnswerScreen() {
+  const { ex } = S.currentExam;
+  const nDisc = parseInt(v('cfg-ndisc')) || S.nDisc || 2;
+  const nAlts = parseInt(v('cfg-nalts')) || S.nAlts || 4;
+  const alts  = ['A','B','C','D','E'].slice(0, nAlts);
+  const total  = ex.qOrder.length;
+
+  document.getElementById('ans-title').textContent = S.currentExam.student.name.split(' ')[0];
+  document.getElementById('ans-sub').textContent = `0 de ${total} respondidas`;
+
+  const container = document.getElementById('answers-content');
+  container.innerHTML = '';
+
+  // Progress pips
+  const pips = document.createElement('div');
+  pips.className = 'q-progress'; pips.id = 'q-pips';
+  ex.qOrder.forEach((_, i) => {
+    const pip = document.createElement('div');
+    pip.className = 'q-pip'; pip.id = `pip-${i}`;
+    pips.appendChild(pip);
+  });
+  container.appendChild(pips);
+
+  // Discursive notice
+  if (nDisc > 0) {
+    const n = document.createElement('div');
+    n.className = 'disc-notice';
+    n.innerHTML = `✎ <strong>Q1 a Q${nDisc}: Discursivas</strong> — serão avaliadas manualmente pelo professor. Não aparecem aqui.`;
+    container.appendChild(n);
+  }
+
+  // Objective question blocks
+  ex.qOrder.forEach((origQ, idx) => {
+    const displayNum = nDisc + idx + 1;
+    const block = document.createElement('div');
+    block.className = 'q-block'; block.id = `qblock-${idx}`;
+
+    const hdr = document.createElement('div');
+    hdr.className = 'q-header-row';
+    hdr.innerHTML = `
+      <span class="q-num-badge">Questão ${displayNum}</span>
+      <span class="q-status-icon" id="qstatus-${idx}">○</span>`;
+
+    const bubblesRow = document.createElement('div');
+    bubblesRow.className = 'bubbles-row' + (nAlts === 5 ? ' five' : '');
+
+    alts.forEach(l => {
+      const b = document.createElement('button');
+      b.className = 'bubble-btn';
+      b.textContent = l;
+      b.setAttribute('data-q', origQ);
+      b.setAttribute('data-l', l);
+      b.setAttribute('data-idx', idx);
+      b.onclick = () => selectBubble(origQ, l, idx, bubblesRow, block);
+      bubblesRow.appendChild(b);
+    });
+
+    block.appendChild(hdr);
+    block.appendChild(bubblesRow);
+    container.appendChild(block);
+  });
+
+  // Padding at bottom so last question is reachable above the sticky button
+  const pad = document.createElement('div');
+  pad.style.height = '20px';
+  container.appendChild(pad);
+}
+
+function selectBubble(origQ, letter, idx, row, block) {
+  const prev = S.studentAnswers[origQ];
+
+  // Toggle off
+  if (prev === letter) {
+    delete S.studentAnswers[origQ];
+    row.querySelectorAll('.bubble-btn').forEach(b => b.classList.remove('filled'));
+    block.classList.remove('answered');
+    document.getElementById(`qstatus-${idx}`).textContent = '○';
+    document.getElementById(`pip-${idx}`).className = 'q-pip';
+  } else {
+    S.studentAnswers[origQ] = letter;
+    row.querySelectorAll('.bubble-btn').forEach(b => b.classList.remove('filled'));
+    row.querySelector(`[data-l="${letter}"]`).classList.add('filled');
+    block.classList.add('answered');
+    document.getElementById(`qstatus-${idx}`).textContent = '✓';
+    document.getElementById(`pip-${idx}`).className = 'q-pip answered';
+  }
+  updateAnswerCounter();
+}
+
+function updateAnswerCounter() {
+  const { ex } = S.currentExam;
+  const answered = Object.keys(S.studentAnswers).length;
+  const total = ex.qOrder.length;
+  document.getElementById('ans-sub').textContent = `${answered} de ${total} respondidas`;
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = answered === 0;
+}
+
+// ══════════════════════════════════════════════════════
+//  SUBMIT CORRECTION
+// ══════════════════════════════════════════════════════
+async function submitCorrection() {
+  const { ex, student } = S.currentExam;
+  const nDisc = parseInt(v('cfg-ndisc')) || S.nDisc || 2;
+  const totalObj = ex.qOrder.length;
+  const pontoPorQ = 10 / (totalObj + nDisc);
+
+  let acertos = 0, erros = 0;
+  const detalhes = [];
+
+  // Discursives
+  for (let i = 1; i <= nDisc; i++) detalhes.push({ q: i, tipo: 'disc', status: 'disc' });
+
+  // Mark bubbles correct/wrong and collect details
+  ex.qOrder.forEach((origQ, idx) => {
+    const displayNum = nDisc + idx + 1;
+    const gab  = S.gabarito.find(g => g.q === origQ);
+    const correta = gab?.answer || null;
+    const dada    = S.studentAnswers[origQ] || null;
+    const ok      = dada && correta && dada === correta;
+    if (ok) acertos++; else if (dada) erros++;
+
+    detalhes.push({ q: displayNum, origQ, correta, dada, status: ok ? 'certo' : dada ? 'errado' : 'branco' });
+
+    // Color bubbles
+    const block = document.getElementById(`qblock-${idx}`);
+    if (block) {
+      block.querySelectorAll('.bubble-btn').forEach(b => {
+        b.classList.remove('filled');
+        if (b.getAttribute('data-l') === correta) b.classList.add('correct');
+        else if (b.getAttribute('data-l') === dada && !ok) b.classList.add('wrong');
+      });
+      document.getElementById(`pip-${idx}`).className = 'q-pip ' + (ok ? 'correct' : dada ? 'wrong' : '');
+    }
+  });
+
+  const nota = parseFloat((acertos * pontoPorQ).toFixed(1));
+  const resultado = {
+    examKey: ex.key, studentId: student.id, studentName: student.name,
+    nota, acertos, erros, brancos: totalObj - acertos - erros,
+    detalhes, timestamp: new Date().toISOString(),
+  };
+
+  // Save locally
+  S.results = S.results.filter(r => r.examKey !== ex.key);
+  S.results.push(resultado);
+  save();
+
+  // Send to Sheets async
+  pushResultado(resultado);
+
+  // Show result screen
+  showResult(resultado);
+}
+
+function showResult(r) {
+  const sc = r.nota >= 7 ? 'high' : r.nota >= 5 ? 'mid' : 'low';
+  const ring = document.getElementById('res-ring');
+  ring.className = 'score-ring ' + sc;
+  document.getElementById('res-score').textContent = r.nota.toFixed(1);
+  document.getElementById('res-name').textContent = r.studentName;
+  const totalObj = r.detalhes.filter(d => d.tipo !== 'disc').length;
+  document.getElementById('res-sub').textContent = `${r.acertos} de ${totalObj} corretas`;
+  document.getElementById('res-acertos').textContent = r.acertos;
+  document.getElementById('res-erros').textContent   = r.erros;
+  document.getElementById('res-brancos').textContent  = r.brancos;
+
+  // Detail grid
+  const grid = document.getElementById('res-detail');
+  grid.innerHTML = r.detalhes.filter(d => d.tipo !== 'disc').map(d => {
+    const cls = d.status === 'certo' ? 'ok' : d.status === 'errado' ? 'err' : 'blank';
+    const icon = d.status === 'certo' ? '✓' : d.status === 'errado' ? '✗' : '—';
+    const show = d.dada || (d.status === 'errado' ? `—(${d.correta})` : '—');
+    return `<div class="detail-row">
+      <span class="detail-q">Q${d.q}</span>
+      <span class="detail-ans ${cls}">${show}</span>
+      ${d.status === 'errado' ? `<span style="font-size:10px;color:var(--text2)">✓${d.correta}</span>` : ''}
+      <span class="detail-icon">${icon}</span>
+    </div>`;
+  }).join('');
+
+  goScreen('s-result');
+}
+
+function nextStudent() {
+  S.currentExam = null;
+  S.studentAnswers = {};
+  goScan();
+}
+
+// ══════════════════════════════════════════════════════
+//  RESULTS LIST
+// ══════════════════════════════════════════════════════
+function renderResultsList() {
+  const container = document.getElementById('results-list-content');
+  const total = Object.keys(S.exams).length;
+  const corr  = S.results.length;
+  const pend  = Math.max(0, total - corr);
+  const media = corr ? (S.results.reduce((s,r)=>s+r.nota,0)/corr).toFixed(1) : '—';
+
+  document.getElementById('res-list-sub').textContent = `${corr} corrigidas · média ${media}`;
+
+  if (!S.results.length) {
+    container.innerHTML = '<div class="empty"><div class="ei">📋</div><p>Nenhuma prova corrigida ainda.</p></div>';
+    return;
+  }
+
+  const sorted = [...S.results].sort((a,b) => b.nota - a.nota);
+  container.innerHTML = sorted.map(r => {
+    const sc = r.nota >= 7 ? 'high' : r.nota >= 5 ? 'mid' : 'low';
+    const totalObj = r.detalhes.filter(d=>d.tipo!=='disc').length;
+    const bars = r.detalhes.filter(d=>d.tipo!=='disc').map(d =>
+      `<div class="mini-bar" style="background:${d.status==='certo'?'var(--green)':d.status==='errado'?'var(--red)':'var(--s3)'}"></div>`
+    ).join('');
+    return `<div class="result-item">
+      <div class="ri-score ${sc}">${r.nota.toFixed(1)}</div>
+      <div style="flex:1;min-width:0">
+        <div class="ri-name">${r.studentName}</div>
+        <div class="ri-sub">${r.acertos}/${totalObj} acertos · ${r.erros} erros</div>
+        <div class="mini-bars">${bars}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════
+//  HOME STATS
+// ══════════════════════════════════════════════════════
+function updateHome() {
+  const total = Object.keys(S.exams).length || S.students.length;
+  const corr  = S.results.length;
+  document.getElementById('h-total').textContent = total;
+  document.getElementById('h-done').textContent  = corr;
+  document.getElementById('h-pend').textContent  = Math.max(0, total - corr);
+  const hs = document.getElementById('home-alunos-sub');
+  if (hs) hs.textContent = S.students.length + ' cadastrados';
+}
+
+function renderAlunos() {
+  const container = document.getElementById('alunos-content');
+  if (!container) return;
+  const sub = document.getElementById('alunos-sub');
+  if (sub) sub.textContent = S.students.length + ' cadastrados';
+  const hs = document.getElementById('home-alunos-sub');
+  if (hs) hs.textContent = S.students.length + ' cadastrados';
+
+  if (!S.students.length) {
+    container.innerHTML = '<div class="empty"><div class="ei">👥</div><p>Nenhum aluno cadastrado.<br>Importe via Excel ou sincronize com o Sheets.</p></div>';
+    return;
+  }
+
+  const gBadge = { regular:'var(--accent)', tdah:'var(--yellow)', di:'var(--green)' };
+  const gLabel = { regular:'Regular', tdah:'TDAH', di:'DI' };
+
+  // Group by group type
+  const groups = { regular:[], tdah:[], di:[] };
+  S.students.forEach(s => { (groups[s.group] || groups.regular).push(s); });
+
+  let html = '';
+  // Summary bar
+  html += `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">
+    <div class="stat-card"><div class="stat-num accent">${groups.regular.length}</div><div class="stat-lbl">Regular</div></div>
+    <div class="stat-card"><div class="stat-num yellow">${groups.tdah.length}</div><div class="stat-lbl">TDAH</div></div>
+    <div class="stat-card"><div class="stat-num green">${groups.di.length}</div><div class="stat-lbl">DI</div></div>
+  </div>`;
+
+  // Search bar
+  html += `<div style="margin-bottom:12px">
+    <input type="text" id="alunos-search" placeholder="🔍 Buscar aluno..." 
+      oninput="filterAlunos(this.value)"
+      style="width:100%;background:var(--s2);border:1px solid var(--border);border-radius:10px;
+             color:var(--text);font-family:Sora,sans-serif;font-size:14px;padding:12px 14px;outline:none">
+  </div>`;
+
+  // List
+  html += '<div id="alunos-list">';
+  S.students.forEach((s, idx) => {
+    const initials = s.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    const grpColor = gBadge[s.group] || gBadge.regular;
+    const grpLbl   = gLabel[s.group] || 'Regular';
+    const corrected = S.results.find(r => r.studentId === s.id);
+    const nota = corrected ? corrected.nota.toFixed(1) : null;
+    const notaColor = nota ? (nota >= 7 ? 'var(--green)' : nota >= 5 ? 'var(--yellow)' : 'var(--red)') : 'var(--text2)';
+
+    html += `<div class="result-item" id="alunorow-${idx}" style="margin-bottom:8px">
+      <div style="width:44px;height:44px;border-radius:50%;background:${grpColor}22;border:2px solid ${grpColor};
+                  display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;
+                  color:${grpColor};flex-shrink:0">${initials}</div>
+      <div style="flex:1;min-width:0">
+        <div class="ri-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.name}</div>
+        <div class="ri-sub">${s.id} · <span style="color:${grpColor};font-weight:700">${grpLbl}</span></div>
+      </div>
+      ${nota
+        ? `<div style="font-family:'DM Mono',monospace;font-size:16px;font-weight:700;color:${notaColor}">${nota}</div>`
+        : `<div style="font-size:11px;color:var(--text2)">Pendente</div>`}
+      <button onclick="removeAluno(${idx})" style="background:none;border:none;color:var(--text2);font-size:18px;cursor:pointer;padding:4px 8px;flex-shrink:0">×</button>
+    </div>`;
+  });
+  html += '</div>';
+
+  container.innerHTML = html;
+}
+
+function filterAlunos(q) {
+  const rows = document.querySelectorAll('[id^="alunorow-"]');
+  const lq = q.toLowerCase();
+  rows.forEach(row => {
+    const name = row.querySelector('.ri-name')?.textContent.toLowerCase() || '';
+    row.style.display = name.includes(lq) || !q ? '' : 'none';
+  });
+}
+
+function removeAluno(idx) {
+  if (!confirm('Remover ' + S.students[idx]?.name + '?')) return;
+  S.students.splice(idx, 1);
+  save(); renderAlunos(); updateHome();
+  toast('Aluno removido', 'var(--yellow)');
+}
+
+async function pullAlunosSheet() {
+  if (!S.gsUrl) { toast('Configure o Sheets primeiro', 'var(--yellow)'); return; }
+  updateDot('spin');
+  try {
+    S.students = await gsGet('getAlunos') || [];
+    save(); renderAlunos(); updateHome(); updateDot('ok');
+    toast(S.students.length + ' alunos carregados!', 'var(--green)');
+  } catch(e) { updateDot('err'); toast(e.message, 'var(--red)'); }
+}
+
+// ══════════════════════════════════════════════════════
+//  GABARITO MINI RENDER (config screen)
+// ══════════════════════════════════════════════════════
+function renderGabaritoMini() {
+  const nObj  = parseInt(v('cfg-nobj'))  || S.nObj  || 8;
+  const nDisc = parseInt(v('cfg-ndisc')) || S.nDisc || 2;
+  const nAlts = parseInt(v('cfg-nalts')) || S.nAlts || 4;
+  const alts  = ['A','B','C','D','E'].slice(0, nAlts);
+  const container = document.getElementById('gabarito-mini');
+  if (!container) return;
+
+  // Sync state from inputs
+  S.nObj = nObj; S.nDisc = nDisc; S.nAlts = nAlts;
+
+  if (S.gabarito.length === 0) {
+    // Build skeleton
+    S.gabarito = [];
+    for (let i=1;i<=nDisc;i++) S.gabarito.push({q:i,answer:'DISC',type:'disc'});
+    for (let i=nDisc+1;i<=nDisc+nObj;i++) S.gabarito.push({q:i,answer:null,type:'obj'});
+  }
+
+  const objGab = S.gabarito.filter(g=>g.type==='obj');
+  container.innerHTML = objGab.map(g => `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);min-width:28px">Q${g.q}</span>
+      <div style="display:flex;gap:6px">
+        ${alts.map(l => `
+          <button onclick="setGab(${g.q},'${l}')" style="
+            width:34px;height:34px;border-radius:50%;border:2px solid ${g.answer===l?'var(--green)':'var(--border)'};
+            background:${g.answer===l?'rgba(31,206,160,.15)':'var(--s2)'};
+            color:${g.answer===l?'var(--green)':'var(--text2)'};
+            font-family:'DM Mono',monospace;font-size:13px;font-weight:700;cursor:pointer;
+            transition:all .15s;
+          ">${l}</button>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+function setGab(q, letter) {
+  const g = S.gabarito.find(x => x.q === q);
+  if (g) { g.answer = g.answer === letter ? null : letter; }
+  save(); renderGabaritoMini();
+}
+
+// ══════════════════════════════════════════════════════
+//  GOOGLE SHEETS
+// ══════════════════════════════════════════════════════
+function updateDot(state, txt='') {
+  ['home-dot','cfg-dot','ans-dot'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.className = 'dot ' + state;
+  });
+  const s = document.getElementById('cfg-gs-status');
+  if (s) s.textContent = txt || { ok:'✅ Conectado', err:'❌ Erro', off:'Não configurado', spin:'Sincronizando…' }[state] || '';
+  const ht = document.getElementById('home-gs-txt');
+  if (ht) ht.textContent = { ok:'✅ Google Sheets conectado', err:'❌ Falha na conexão', off:'Não configurado', spin:'Sincronizando…' }[state] || '';
+  const at = document.getElementById('ans-sync-txt');
+  if (at) at.textContent = { ok:'Sheets', err:'local', off:'local', spin:'sync…' }[state] || 'local';
+}
+
+async function gsGet(acao) {
+  if (!S.gsUrl) throw new Error('URL não configurada');
+  const r = await fetch(`${S.gsUrl}?acao=${acao}`, { method:'GET' });
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.erro || 'Erro');
+  return j.data;
+}
+
+async function gsPost(acao, dados) {
+  if (!S.gsUrl) throw new Error('URL não configurada');
+  const r = await fetch(S.gsUrl, {
+    method: 'POST', headers: {'Content-Type':'text/plain'},
+    body: JSON.stringify({ acao, dados })
+  });
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.erro || 'Erro');
+  return j.data;
+}
+
+function salvarUrl() {
+  const url = v('cfg-gs-url').trim();
+  if (!url.startsWith('https://script.google.com')) { toast('URL inválida', 'var(--red)'); return; }
+  S.gsUrl = url; save(); toast('URL salva!', 'var(--green)');
+  testarConexao();
+}
+
+async function testarConexao() {
+  updateDot('spin');
+  try {
+    await gsGet('ping');
+    updateDot('ok');
+    toast('✅ Conexão OK!', 'var(--green)');
+  } catch(e) {
+    updateDot('err');
+    toast('Erro: ' + e.message, 'var(--red)');
+  }
+}
+
+async function pullData() {
+  if (!S.gsUrl) { toast('Configure o Sheets primeiro', 'var(--yellow)'); return; }
+  updateDot('spin');
+  try {
+    const [alunos, gab, provas] = await Promise.all([
+      gsGet('getAlunos'), gsGet('getGabarito'), gsGet('getProvas')
+    ]);
+    S.students = alunos || [];
+    S.gabarito = gab    || [];
+    S.exams    = provas || {};
+    // Also pull results
+    try { S.results = await gsGet('getResultados') || []; } catch(e) {}
+    save(); updateDot('ok'); updateHome(); renderGabaritoMini(); renderAlunos();
+    toast(`✅ Dados carregados — ${(alunos||[]).length} alunos`, 'var(--green)');
+  } catch(e) {
+    updateDot('err');
+    toast('Erro: ' + e.message, 'var(--red)');
+  }
+}
+
+async function pullGabarito() {
+  if (!S.gsUrl) { toast('Configure o Sheets primeiro', 'var(--yellow)'); return; }
+  try {
+    S.gabarito = await gsGet('getGabarito') || [];
+    save(); renderGabaritoMini();
+    toast('Gabarito carregado!', 'var(--green)');
+  } catch(e) { toast(e.message, 'var(--red)'); }
+}
+
+async function pushResultado(r) {
+  if (!S.gsUrl) return;
+  try {
+    updateDot('spin');
+    await gsPost('salvarResultado', r);
+    updateDot('ok');
+  } catch(e) {
+    updateDot('err');
+    console.warn('push falhou:', e.message);
+  }
+}
+
+async function pushResults() {
+  if (!S.gsUrl) { toast('Configure o Sheets primeiro', 'var(--yellow)'); return; }
+  updateDot('spin');
+  try {
+    for (const r of S.results) await gsPost('salvarResultado', r);
+    updateDot('ok');
+    toast(`${S.results.length} resultados enviados!`, 'var(--green)');
+  } catch(e) {
+    updateDot('err');
+    toast(e.message, 'var(--red)');
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  EXPORT XLSX
+// ══════════════════════════════════════════════════════
+function exportXLSX() {
+  if (!S.results.length) { toast('Nenhum resultado para exportar', 'var(--red)'); return; }
+  const nDisc = S.nDisc || 2;
+  const nObj  = S.nObj  || 8;
+  const totalQ = nObj + nDisc;
+
+  const summary = [
+    ['Relatório de Correção'],
+    ['Aluno','Código Prova','Nota','Acertos','Erros','Em Branco','Status'],
+    ...S.results.sort((a,b)=>b.nota-a.nota).map(r=>[
+      r.studentName, r.examKey, r.nota, r.acertos, r.erros, r.brancos,
+      r.nota>=7?'Aprovado':r.nota>=5?'Recuperação':'Reprovado'
+    ])
+  ];
+  const detHeader = ['Aluno','Código',...Array.from({length:totalQ},(_,i)=>`Q${i+1}`),'Nota'];
+  const detRows = S.results.map(r => {
+    const qs = Array.from({length:totalQ},(_,i)=>{
+      const d = r.detalhes.find(d=>d.q===i+1);
+      if (!d) return '';
+      if (d.tipo==='disc') return 'DISC';
+      return d.status==='certo'?`✓${d.dada}`:d.dada?`✗${d.dada}(${d.correta})`:'-';
+    });
+    return [r.studentName,r.examKey,...qs,r.nota];
+  });
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summary), 'Resumo');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([detHeader,...detRows]), 'Detalhes');
+  XLSX.writeFile(wb, `correcao_${new Date().toISOString().slice(0,10)}.xlsx`);
+  toast('Planilha exportada!', 'var(--green)');
+}
+
+// ══════════════════════════════════════════════════════
+//  BACKUP
+// ══════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
+//  IMPORT ALUNOS — Excel / CSV
+// ══════════════════════════════════════════════════════
+let _importPreview = [];
+
+function importAlunosExcel(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  event.target.value = '';
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+      // Detectar linha de cabeçalho
+      let startRow = 0;
+      const hdr = (rows[0] || []).map(c => String(c).toLowerCase().trim());
+      const hasHeader = hdr.some(h => h.includes('nome') || h.includes('aluno') || h.includes('name') || h.includes('matricula'));
+      if (hasHeader) startRow = 1;
+
+      _importPreview = [];
+      rows.slice(startRow).forEach(row => {
+        const nome = String(row[0] || '').trim();
+        if (!nome || nome.length < 2) return;
+        const mat  = String(row[1] || 'ALU' + String(_importPreview.length + 1).padStart(3, '0')).trim();
+        const grp  = String(row[2] || 'regular').trim().toLowerCase();
+        const grupo = ['tdah', 'di'].includes(grp) ? grp : 'regular';
+        _importPreview.push({ id: mat, name: nome, group: grupo });
+      });
+
+      if (!_importPreview.length) {
+        toast('Nenhum aluno encontrado. Verifique o formato do arquivo.', 'var(--red)'); return;
+      }
+
+      // Mostrar preview NA TELA DE ALUNOS
+      goScreen('s-alunos');
+      showImportPreview();
+
+    } catch(err) {
+      toast('Erro ao ler arquivo: ' + err.message, 'var(--red)');
+      console.error(err);
+    }
+  };
+  reader.onerror = () => toast('Não foi possível ler o arquivo.', 'var(--red)');
+  reader.readAsArrayBuffer(file);
+}
+
+function showImportPreview() {
+  const gBadge = { regular:'var(--accent)', tdah:'var(--yellow)', di:'var(--green)' };
+  const gLabel = { regular:'Regular', tdah:'TDAH', di:'DI' };
+
+  document.getElementById('alunos-preview-lbl').textContent =
+    _importPreview.length + ' alunos encontrados — confirme para importar';
+
+  document.getElementById('alunos-preview-list').innerHTML = _importPreview.map((a, i) =>
+    `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="width:36px;height:36px;border-radius:50%;background:${gBadge[a.group]}22;border:2px solid ${gBadge[a.group]};
+                  display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;
+                  color:${gBadge[a.group]};flex-shrink:0">
+        ${a.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.name}</div>
+        <div style="font-size:11px;color:var(--text2)">${a.id} · <span style="color:${gBadge[a.group]};font-weight:700">${gLabel[a.group]}</span></div>
+      </div>
+    </div>`
+  ).join('');
+
+  // Esconder lista normal e botão inferior, mostrar preview
+  document.getElementById('alunos-content').style.display = 'none';
+  document.getElementById('alunos-bottom').style.display = 'none';
+  document.getElementById('alunos-import-preview').style.display = 'flex';
+  toast(_importPreview.length + ' alunos lidos!', 'var(--green)');
+}
+
+function cancelImportAlunos() {
+  _importPreview = [];
+  document.getElementById('alunos-import-preview').style.display = 'none';
+  document.getElementById('alunos-content').style.display = 'block';
+  document.getElementById('alunos-bottom').style.display = 'block';
+}
+
+// Mantido para compatibilidade com botão na tela de config
+function cancelImport() { cancelImportAlunos(); }
+
+function confirmImport() {
+  if (!_importPreview.length) return;
+  let added = 0, updated = 0;
+  _importPreview.forEach(a => {
+    const existing = S.students.findIndex(s => s.id === a.id);
+    if (existing >= 0) { S.students[existing] = a; updated++; }
+    else { S.students.push(a); added++; }
+  });
+  save();
+  cancelImportAlunos();
+  updateHome();
+  renderAlunos();
+  toast('✅ ' + added + ' novos + ' + updated + ' atualizados', 'var(--green)');
+}
+
+function downloadTemplateExcel() {
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['Nome', 'Matricula', 'Grupo'],
+    ['Ana Carolina Silva', '2024001', 'regular'],
+    ['Bruno Henrique Costa', '2024002', 'tdah'],
+    ['Camila Ferreira Santos', '2024003', 'regular'],
+    ['Diego Souza Oliveira', '2024004', 'di'],
+    ['Eduarda Lima Pereira', '2024005', 'regular'],
+  ]);
+  ws['!cols'] = [{ wch: 35 }, { wch: 12 }, { wch: 10 }];
+  XLSX.utils.book_append_sheet(wb, ws, 'Alunos');
+  XLSX.writeFile(wb, 'modelo_alunos_corretoapp.xlsx');
+  toast('Modelo baixado!', 'var(--green)');
+}
+
+function exportBackup() {
+  const blob = new Blob([JSON.stringify({students:S.students,gabarito:S.gabarito,exams:S.exams,results:S.results},null,2)],{type:'application/json'});
+  saveAs(blob, `backup_corretor_${new Date().toISOString().slice(0,10)}.json`);
+}
+function importBackup(e) {
+  const f = e.target.files[0]; if(!f)return;
+  const r = new FileReader();
+  r.onload = ev => {
+    try {
+      const d = JSON.parse(ev.target.result);
+      if (d.students) S.students = d.students;
+      if (d.gabarito) S.gabarito = d.gabarito;
+      if (d.exams)    S.exams    = d.exams;
+      if (d.results)  S.results  = d.results;
+      save(); renderGabaritoMini(); updateHome();
+      toast('Backup restaurado!', 'var(--green)');
+    } catch(err) { toast('Arquivo inválido', 'var(--red)'); }
+  };
+  r.readAsText(f);
+  e.target.value = '';
+}
+function limparResultados() {
+  if (!confirm('Apagar todos os resultados locais?')) return;
+  S.results = []; save(); updateHome();
+  toast('Resultados apagados', 'var(--red)');
+}
+
+// ══════════════════════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════════════════════
+function toast(msg, color='var(--accent)') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.borderColor = color;
+  t.classList.add('show');
+  clearTimeout(t._t);
+  t._t = setTimeout(()=>t.classList.remove('show'), 2800);
+}
+
+// ══════════════════════════════════════════════════════
+//  CONFIG SAVE (auto)
+// ══════════════════════════════════════════════════════
+['cfg-nobj','cfg-ndisc','cfg-nalts'].forEach(id => {
+  document.getElementById(id)?.addEventListener('change', () => {
+    S.nObj  = parseInt(v('cfg-nobj'))  || 8;
+    S.nDisc = parseInt(v('cfg-ndisc')) || 2;
+    S.nAlts = parseInt(v('cfg-nalts')) || 4;
+    // Rebuild gabarito skeleton if needed
+    S.gabarito = [];
+    save(); renderGabaritoMini();
+  });
+});
+
+// ══════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════
+window.addEventListener('load', () => {
+  load();
+  updateHome();
+  // Keep camera off until needed
+  // Handle back gesture on Android
+  window.addEventListener('popstate', () => {
+    const cur = document.querySelector('.screen:not(.hidden)');
+    if (cur && cur.id !== 's-home') {
+      history.pushState(null, '');
+      goScreen('s-home', true);
+    }
+  });
+  history.pushState(null, '');
+});
+
+// Stop camera when page hidden
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) killCamera();
+});
+</script>
+</body>
+</html>
